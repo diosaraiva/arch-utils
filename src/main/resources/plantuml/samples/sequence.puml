@@ -1,0 +1,15 @@
+@startuml
+title Sequence Diagram
+
+actor User
+participant "Web App" as App
+participant "API Server" as API
+database "Database" as DB
+
+User -> App : Open page
+App -> API : GET /data
+API -> DB : SELECT * FROM items
+DB --> API : Result set
+API --> App : JSON response
+App --> User : Render page
+@enduml

@@ -1,0 +1,70 @@
+package com.diosaraiva.archutils.ui;
+
+import com.diosaraiva.archutils.service.PlantUmlService;
+
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
+import javax.swing.SwingWorker;
+import java.awt.BorderLayout;
+import java.io.File;
+
+/**
+ * Coordinator panel that wires input, buttons and diagram preview.
+ */
+public class PlantUmlPanel extends JPanel {
+
+    private final PlantUmlInputPanel inputPanel;
+    private final PlantUmlButtonPanel buttonPanel;
+    private final DiagramPreviewPanel previewPanel;
+
+    public PlantUmlPanel() {
+        String defaultTarget = resolveDefaultTarget("png");
+        inputPanel = new PlantUmlInputPanel(defaultTarget);
+        buttonPanel = new PlantUmlButtonPanel();
+        previewPanel = new DiagramPreviewPanel();
+        initComponents();
+    }
+
+    private void initComponents() {
+        setLayout(new BorderLayout(8, 8));
+        setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+        add(inputPanel, BorderLayout.NORTH);
+        add(previewPanel, BorderLayout.CENTER);
+        add(buttonPanel, BorderLayout.SOUTH);
+
+        buttonPanel.onGenerateDiagram(e -> onGenerateDiagram());
+        buttonPanel.onFormatChanged(e -> onFormatChanged());
+    }
+
+    private void onFormatChanged() {
+        inputPanel.setTargetFileExtension(buttonPanel.getSelectedFormat());
+    }
+
+    private void onGenerateDiagram() {
+        String code = inputPanel.getCode();
+        String target = inputPanel.getTargetFile();
+        if (code.isEmpty()) { previewPanel.showMessage("PlantUML code is empty."); return; }
+        if (target.isEmpty()) { previewPanel.showMessage("Target file path is empty."); return; }
+        previewPanel.showMessage("Rendering diagram...");
+        new SwingWorker<File, Void>() {
+            @Override protected File doInBackground() throws Exception {
+                PlantUmlService.render(code, target);
+                return new File(target);
+            }
+            @Override protected void done() {
+                try {
+                    previewPanel.showDiagram(get());
+                } catch (Exception ex) {
+                    previewPanel.showMessage("Error: " + ex.getMessage());
+                }
+            }
+        }.execute();
+    }
+
+    private static String resolveDefaultTarget(String ext) {
+        String userDir = System.getProperty("user.dir");
+        return userDir + File.separator + "output"
+                + File.separator + "target." + ext;
+    }
+}

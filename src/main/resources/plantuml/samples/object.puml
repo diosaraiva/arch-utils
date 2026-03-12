@@ -1,0 +1,30 @@
+@startuml
+title Object Diagram
+
+object "john : User" as john {
+  name = "John Doe"
+  email = "john@example.com"
+  role = "Admin"
+}
+
+object "order1 : Order" as order1 {
+  id = 1001
+  status = "Shipped"
+  total = 59.99
+}
+
+object "order2 : Order" as order2 {
+  id = 1002
+  status = "Pending"
+  total = 24.50
+}
+
+object "item1 : Product" as item1 {
+  name = "Widget"
+  price = 29.99
+}
+
+john --> order1
+john --> order2
+order1 --> item1
+@enduml

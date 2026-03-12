@@ -1,0 +1,22 @@
+@startuml
+title Timing Diagram
+
+robust "Web Server" as WS
+concise "User" as User
+
+@0
+WS is Idle
+User is Idle
+
+@100
+User is Requesting
+WS is Processing
+
+@300
+WS is Sending
+User is Waiting
+
+@500
+WS is Idle
+User is Received
+@enduml

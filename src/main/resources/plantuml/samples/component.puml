@@ -1,0 +1,28 @@
+@startuml
+title Component Diagram
+
+package "Frontend" {
+  [Web UI] as UI
+  [Mobile App] as Mobile
+}
+
+package "Backend" {
+  [API Gateway] as GW
+  [Auth Service] as Auth
+  [Order Service] as Order
+  [Notification Service] as Notif
+}
+
+package "Data" {
+  database "PostgreSQL" as DB
+  queue "RabbitMQ" as MQ
+}
+
+UI --> GW
+Mobile --> GW
+GW --> Auth
+GW --> Order
+Order --> DB
+Order --> MQ
+MQ --> Notif
+@enduml

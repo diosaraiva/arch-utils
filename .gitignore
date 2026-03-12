@@ -12,6 +12,7 @@
 
 # Package Files #
 *.jar
+!src/main/resources/plantuml/*.jar
 *.war
 *.nar
 *.ear
@@ -25,3 +26,16 @@ replay_pid*
 
 # Maven build output
 target/
+
+# Eclipse
+.settings/
+.project
+.classpath
+
+# Build output
+bin/
+output/
+
+# macOS
+.DS_Store
+._*

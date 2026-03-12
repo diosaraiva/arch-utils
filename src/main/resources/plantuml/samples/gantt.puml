@@ -1,0 +1,15 @@
+@startgantt
+title Project Schedule
+
+Project starts 2026-01-05
+
+[Requirements] lasts 10 days
+[Design] lasts 15 days
+[Design] starts at [Requirements]'s end
+[Development] lasts 30 days
+[Development] starts at [Design]'s end
+[Testing] lasts 15 days
+[Testing] starts at [Development]'s end
+[Deployment] lasts 5 days
+[Deployment] starts at [Testing]'s end
+@endgantt

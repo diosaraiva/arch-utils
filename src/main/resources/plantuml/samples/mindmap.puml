@@ -1,0 +1,21 @@
+@startmindmap
+title Project Planning
+
+* Project
+** Requirements
+*** Functional
+*** Non-Functional
+** Design
+*** Architecture
+*** UI/UX
+** Development
+*** Frontend
+*** Backend
+*** Database
+** Testing
+*** Unit Tests
+*** Integration Tests
+** Deployment
+*** Staging
+*** Production
+@endmindmap

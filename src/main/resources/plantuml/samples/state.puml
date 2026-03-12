@@ -1,0 +1,18 @@
+@startuml
+title State Diagram
+
+[*] --> Idle
+
+Idle --> Processing : Submit
+Processing --> Approved : Approve
+Processing --> Rejected : Reject
+Approved --> Completed : Finalize
+Rejected --> Idle : Resubmit
+Completed --> [*]
+
+state Processing {
+  [*] --> Validating
+  Validating --> Reviewing
+  Reviewing --> [*]
+}
+@enduml

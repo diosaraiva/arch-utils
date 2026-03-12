@@ -1,0 +1,21 @@
+@startuml
+!include <C4/C4_Component>
+
+title Component Diagram
+
+Container_Boundary(api, "API Server") {
+  Component(ctrl, "Controller", "Spring MVC", "Handles HTTP requests.")
+  Component(svc, "Service Layer", "Spring", "Business logic.")
+  Component(repo, "Repository", "Spring Data", "Data access.")
+  Component(auth, "Auth Module", "Spring Security", "Authentication.")
+}
+
+ContainerDb(db, "Database", "PostgreSQL", "Stores data.")
+Container(web, "Web App", "React", "Frontend UI.")
+
+Rel(web, ctrl, "Calls", "REST/JSON")
+Rel(ctrl, auth, "Validates tokens")
+Rel(ctrl, svc, "Delegates to")
+Rel(svc, repo, "Uses")
+Rel(repo, db, "Reads/Writes", "JDBC")
+@enduml

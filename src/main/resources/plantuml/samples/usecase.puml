@@ -1,0 +1,22 @@
+@startuml
+title Use Case Diagram
+
+left to right direction
+
+actor Customer
+actor Admin
+
+rectangle "Online Store" {
+  usecase "Browse Products" as UC1
+  usecase "Place Order" as UC2
+  usecase "Make Payment" as UC3
+  usecase "Manage Inventory" as UC4
+  usecase "View Reports" as UC5
+}
+
+Customer --> UC1
+Customer --> UC2
+UC2 --> UC3 : <<include>>
+Admin --> UC4
+Admin --> UC5
+@enduml

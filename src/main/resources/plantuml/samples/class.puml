@@ -1,0 +1,27 @@
+@startuml
+title Class Diagram
+
+abstract class Animal {
+  - name : String
+  - age : int
+  + getName() : String
+  + makeSound() : void
+}
+
+class Dog extends Animal {
+  + fetch() : void
+  + makeSound() : void
+}
+
+class Cat extends Animal {
+  + purr() : void
+  + makeSound() : void
+}
+
+interface Trainable {
+  + train(command : String) : void
+}
+
+Dog ..|> Trainable
+Animal "1" *-- "0..*" Animal : parent
+@enduml

@@ -1,0 +1,22 @@
+@startuml
+!include <C4/C4_Container>
+
+title Container Diagram
+
+Person(user, "User", "A user of the system.")
+
+System_Boundary(sys, "My System") {
+  Container(web, "Web App", "React", "Delivers the UI.")
+  Container(api, "API Server", "Java/Spring", "Handles business logic.")
+  ContainerDb(db, "Database", "PostgreSQL", "Stores data.")
+  Container(mq, "Message Queue", "RabbitMQ", "Async messaging.")
+}
+
+System_Ext(ext, "External API", "Provides data.")
+
+Rel(user, web, "Uses", "HTTPS")
+Rel(web, api, "Calls", "REST/JSON")
+Rel(api, db, "Reads/Writes", "JDBC")
+Rel(api, mq, "Publishes", "AMQP")
+Rel(api, ext, "Fetches data", "REST")
+@enduml

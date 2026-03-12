@@ -1,0 +1,25 @@
+@startuml
+!include <C4/C4_Deployment>
+
+title Deployment Diagram
+
+Deployment_Node(cloud, "AWS", "Cloud") {
+  Deployment_Node(web_tier, "Web Tier", "EC2") {
+    Container(web, "Web App", "React", "Serves the UI.")
+  }
+  Deployment_Node(app_tier, "App Tier", "ECS") {
+    Container(api, "API Server", "Java/Spring", "Business logic.")
+  }
+  Deployment_Node(data_tier, "Data Tier", "RDS") {
+    ContainerDb(db, "Database", "PostgreSQL", "Stores data.")
+  }
+}
+
+Deployment_Node(user_device, "User Device", "Browser") {
+  Container(browser, "Browser", "Chrome/Firefox", "User interface.")
+}
+
+Rel(browser, web, "Uses", "HTTPS")
+Rel(web, api, "Calls", "REST")
+Rel(api, db, "Reads/Writes", "JDBC")
+@enduml

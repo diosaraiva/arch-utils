@@ -1,0 +1,25 @@
+@startuml
+title Deployment Diagram
+
+node "Web Server" as web {
+  artifact "webapp.war"
+}
+
+node "App Server" as app {
+  artifact "api.jar"
+  artifact "worker.jar"
+}
+
+node "Database Server" as db {
+  database "PostgreSQL" as pg
+}
+
+cloud "CDN" as cdn
+
+actor User
+
+User --> cdn : HTTPS
+cdn --> web
+web --> app : REST API
+app --> pg : JDBC
+@enduml

@@ -1,0 +1,19 @@
+@startuml
+title Activity Diagram
+
+start
+:Receive order;
+if (Payment valid?) then (yes)
+  :Process payment;
+  fork
+    :Pack items;
+  fork again
+    :Send confirmation email;
+  end fork
+  :Ship order;
+else (no)
+  :Notify customer;
+  :Cancel order;
+endif
+stop
+@enduml
