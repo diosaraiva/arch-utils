@@ -14,8 +14,8 @@ import java.awt.Font;
 import java.awt.GridLayout;
 
 /**
- * Panel for live CSV / JSON editing with a two-column layout.
- * Editing one side automatically updates the other.
+ * Panel for live CSV / JSON / Markdown editing with a three-column layout.
+ * Editing CSV or JSON automatically updates the other columns.
  */
 public class CsvPanel extends JPanel {
 
@@ -24,20 +24,24 @@ public class CsvPanel extends JPanel {
 
     private final JTextArea csvArea;
     private final JTextArea jsonArea;
+    private final JTextArea markdownArea;
     private boolean updating;
 
     public CsvPanel() {
         csvArea = new JTextArea();
         jsonArea = new JTextArea();
+        markdownArea = new JTextArea();
         initComponents();
         csvArea.setText(SAMPLE_CSV);
     }
 
     private void initComponents() {
-        setLayout(new GridLayout(1, 2, 12, 0));
+        setLayout(new GridLayout(1, 3, 12, 0));
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
         add(createColumn("CSV", csvArea));
         add(createColumn("JSON", jsonArea));
+        add(createColumn("Markdown", markdownArea));
+        markdownArea.setEditable(false);
         csvArea.getDocument().addDocumentListener(syncListener(true));
         jsonArea.getDocument().addDocumentListener(syncListener(false));
     }
@@ -64,8 +68,10 @@ public class CsvPanel extends JPanel {
                 try {
                     if (csvToJson) {
                         jsonArea.setText(CsvJsonConverter.csvToJson(csvArea.getText()));
+                        markdownArea.setText(CsvJsonConverter.csvToMarkdown(csvArea.getText()));
                     } else {
                         csvArea.setText(CsvJsonConverter.jsonToCsv(jsonArea.getText()));
+                        markdownArea.setText(CsvJsonConverter.csvToMarkdown(csvArea.getText()));
                     }
                 } catch (Exception ignored) { }
                 finally { updating = false; }

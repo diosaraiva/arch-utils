@@ -4,8 +4,11 @@ import com.diosaraiva.archutils.service.PlantUmlService;
 
 import javax.swing.BorderFactory;
 import javax.swing.JPanel;
+import javax.swing.JSplitPane;
 import javax.swing.SwingWorker;
 import java.awt.BorderLayout;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.io.File;
 
 /**
@@ -29,8 +32,17 @@ public class PlantUmlPanel extends JPanel {
         setLayout(new BorderLayout(8, 8));
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-        add(inputPanel, BorderLayout.NORTH);
-        add(previewPanel, BorderLayout.CENTER);
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, inputPanel, previewPanel);
+        splitPane.setResizeWeight(0.35);
+        splitPane.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                splitPane.setDividerLocation(0.35);
+                splitPane.removeComponentListener(this);
+            }
+        });
+
+        add(splitPane, BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
 
         buttonPanel.onGenerateDiagram(e -> onGenerateDiagram());
@@ -78,4 +90,6 @@ public class PlantUmlPanel extends JPanel {
         return userDir + File.separator + "output"
                 + File.separator + "target." + ext;
     }
+
+    public PlantUmlInputPanel getInputPanel() { return inputPanel; }
 }

@@ -26,8 +26,8 @@ public class PlantUmlInputPanel extends JPanel {
 
     public PlantUmlInputPanel(String defaultTargetFile) {
         sampleCombo = new JComboBox<>(DiagramSample.values());
-        codeTextArea = new JTextArea(10, 50);
-        targetFileField = new JTextField(40);
+        codeTextArea = new JTextArea(10, 20);
+        targetFileField = new JTextField(15);
         targetFileField.setText(defaultTargetFile);
         initComponents();
     }
@@ -39,10 +39,12 @@ public class PlantUmlInputPanel extends JPanel {
 
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        add(new JLabel("Sample:"), gbc);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        add(new JLabel("Code:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         sampleCombo.addActionListener(e -> loadSample());
         add(sampleCombo, gbc);
 
@@ -51,26 +53,24 @@ public class PlantUmlInputPanel extends JPanel {
         gbc.gridwidth = 2;
         gbc.weightx = 1.0;
         gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
         codeTextArea.setLineWrap(true);
         codeTextArea.setWrapStyleWord(false);
         add(new JScrollPane(codeTextArea), gbc);
 
         gbc.gridy = 2;
         gbc.weighty = 0;
-        gbc.gridwidth = 1;
-        gbc.weightx = 0;
-        add(new JLabel("Target File:"), gbc);
-
-        gbc.gridy = 3;
-        gbc.gridwidth = 1;
+        gbc.gridwidth = 2;
         gbc.weightx = 1.0;
-        add(targetFileField, gbc);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        gbc.gridx = 1;
-        gbc.weightx = 0;
+        JPanel targetRow = new JPanel(new java.awt.BorderLayout(4, 0));
+        targetRow.add(new JLabel("Target File: "), java.awt.BorderLayout.WEST);
+        targetRow.add(targetFileField, java.awt.BorderLayout.CENTER);
         JButton browseBtn = new JButton("Browse...");
         browseBtn.addActionListener(e -> onBrowse());
-        add(browseBtn, gbc);
+        targetRow.add(browseBtn, java.awt.BorderLayout.EAST);
+        add(targetRow, gbc);
 
         loadSample();
     }

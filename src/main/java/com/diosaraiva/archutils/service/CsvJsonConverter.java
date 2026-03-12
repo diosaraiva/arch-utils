@@ -53,4 +53,35 @@ public final class CsvJsonConverter {
     private static String escapeCsv(String val) {
         return val.contains(",") ? "\"" + val + "\"" : val;
     }
+
+    /** Converts CSV text to a Markdown table. */
+    public static String csvToMarkdown(String csv) {
+        String[] lines = csv.split("\\r?\\n");
+        if (lines.length < 1) return "";
+
+        String[] headers = lines[0].split(",", -1);
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("| ");
+        sb.append(String.join(" | ", headers));
+        sb.append(" |\n");
+
+        sb.append("|");
+        for (int i = 0; i < headers.length; i++) {
+            sb.append(" --- |");
+        }
+        sb.append('\n');
+
+        for (int i = 1; i < lines.length; i++) {
+            if (lines[i].trim().isEmpty()) continue;
+            String[] values = lines[i].split(",", -1);
+            sb.append("| ");
+            for (int j = 0; j < headers.length; j++) {
+                if (j > 0) sb.append(" | ");
+                sb.append(j < values.length ? values[j] : "");
+            }
+            sb.append(" |\n");
+        }
+        return sb.toString().trim();
+    }
 }

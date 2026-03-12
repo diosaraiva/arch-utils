@@ -27,7 +27,7 @@ public class MainFrame extends JFrame {
 
     private void initComponents() {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setPreferredSize(new Dimension(800, 600));
+        setPreferredSize(new Dimension(1024, 768));
         setLayout(new BorderLayout());
 
         contentPanel.add(plantUmlPanel, BorderLayout.CENTER);
