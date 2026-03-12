@@ -47,19 +47,30 @@ public class PlantUmlPanel extends JPanel {
         if (code.isEmpty()) { previewPanel.showMessage("PlantUML code is empty."); return; }
         if (target.isEmpty()) { previewPanel.showMessage("Target file path is empty."); return; }
         previewPanel.showMessage("Rendering diagram...");
-        new SwingWorker<File, Void>() {
-            @Override protected File doInBackground() throws Exception {
+        final String tempDir = resolveTempDir();
+        new SwingWorker<File[], Void>() {
+            @Override protected File[] doInBackground() throws Exception {
                 PlantUmlService.render(code, target);
-                return new File(target);
+                File output = new File(target);
+                File preview = null;
+                if (target.toLowerCase().endsWith(".svg")) {
+                    preview = PlantUmlService.renderPreview(code, tempDir);
+                }
+                return new File[]{output, preview};
             }
             @Override protected void done() {
                 try {
-                    previewPanel.showDiagram(get());
+                    File[] result = get();
+                    previewPanel.showDiagram(result[0], result[1]);
                 } catch (Exception ex) {
                     previewPanel.showMessage("Error: " + ex.getMessage());
                 }
             }
         }.execute();
+    }
+
+    private static String resolveTempDir() {
+        return System.getProperty("user.dir") + File.separator + "temp";
     }
 
     private static String resolveDefaultTarget(String ext) {

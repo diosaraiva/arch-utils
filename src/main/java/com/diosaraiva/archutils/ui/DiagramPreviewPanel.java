@@ -64,24 +64,43 @@ public class DiagramPreviewPanel extends JPanel {
 
     /** Loads and displays the diagram from the given file. */
     public void showDiagram(File file) throws IOException {
-        String name = file.getName().toLowerCase();
+        showDiagram(file, null);
+    }
+
+    /** Displays a diagram with an optional separate preview image. */
+    public void showDiagram(File output, File preview) throws IOException {
+        String name = output.getName().toLowerCase();
         if (name.endsWith(".svg")) {
-            showMessage("SVG created, Preview not supported. File: "
-                    + file.getAbsolutePath());
+            if (preview != null && preview.isFile()) {
+                showPngWithNote(preview,
+                        "SVG saved: " + output.getAbsolutePath());
+            } else {
+                showMessage("SVG created: " + output.getAbsolutePath());
+            }
         } else if (name.endsWith(".png")) {
-            showPng(file);
+            showPng(output);
         } else if (name.endsWith(".puml")) {
-            showPuml(file);
+            showPuml(output);
         } else {
             showMessage("Unsupported format: " + name);
         }
     }
 
     private void showPng(File file) {
-        // Read bytes to avoid ImageIcon caching stale images by path
         ImageIcon icon = new ImageIcon(file.getAbsolutePath());
         icon.getImage().flush();
         pngLabel.setIcon(icon);
+        pngLabel.setText(null);
+        cards.show(cardPanel, PNG_CARD);
+    }
+
+    private void showPngWithNote(File file, String note) {
+        ImageIcon icon = new ImageIcon(file.getAbsolutePath());
+        icon.getImage().flush();
+        pngLabel.setIcon(icon);
+        pngLabel.setText(note);
+        pngLabel.setVerticalTextPosition(JLabel.BOTTOM);
+        pngLabel.setHorizontalTextPosition(JLabel.CENTER);
         cards.show(cardPanel, PNG_CARD);
     }
 

@@ -63,6 +63,23 @@ public final class PlantUmlService {
                 "-o", target.getParent());
     }
 
+    /**
+     * Renders a temporary PNG preview into the given temp directory.
+     * Returns the temp PNG file, or null if generation fails.
+     */
+    public static File renderPreview(String code, String tempDir)
+            throws IOException, InterruptedException {
+        File dir = new File(tempDir);
+        if (!dir.exists()) { Files.createDirectories(dir.toPath()); }
+        Path pumlPath = Paths.get(tempDir, "_preview.puml");
+        Files.write(pumlPath, code.getBytes(StandardCharsets.UTF_8));
+        JarUtils.runJar(PLANTUML_JAR, dir,
+                "-tpng", pumlPath.toAbsolutePath().toString(),
+                "-o", tempDir);
+        File preview = new File(tempDir, "_preview.png");
+        return preview.isFile() ? preview : null;
+    }
+
     private static void ensureParentDir(File target) throws IOException {
         File parentDir = target.getParentFile();
         if (parentDir != null && !parentDir.exists()) {
