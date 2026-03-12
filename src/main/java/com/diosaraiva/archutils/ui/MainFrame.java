@@ -13,14 +13,12 @@ public class MainFrame extends JFrame {
 
     private final JPanel contentPanel;
     private final PlantUmlPanel plantUmlPanel;
-    private final PreferencesPanel preferencesPanel;
     private final CsvPanel csvPanel;
 
     public MainFrame() {
         super("Arch Utils");
         contentPanel = new JPanel(new BorderLayout());
         plantUmlPanel = new PlantUmlPanel();
-        preferencesPanel = new PreferencesPanel();
         csvPanel = new CsvPanel();
         initComponents();
     }
@@ -47,8 +45,6 @@ public class MainFrame extends JFrame {
     }
 
     public PlantUmlPanel getPlantUmlPanel() { return plantUmlPanel; }
-
-    public PreferencesPanel getPreferencesPanel() { return preferencesPanel; }
 
     public CsvPanel getCsvPanel() { return csvPanel; }
 }

@@ -1,10 +1,15 @@
 package com.diosaraiva.archutils.ui;
 
+import javax.swing.ButtonGroup;
 import javax.swing.JFileChooser;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -77,11 +82,37 @@ public final class MenuBarFactory {
     private static JMenu createSettingsMenu(MainFrame frame) {
         JMenu menu = new JMenu("Settings");
         menu.setMnemonic(KeyEvent.VK_S);
-        JMenuItem prefs = new JMenuItem("Preferences");
-        prefs.setMnemonic(KeyEvent.VK_P);
-        prefs.addActionListener(e -> frame.showPanel(frame.getPreferencesPanel()));
-        menu.add(prefs);
+
+        JMenu themeMenu = new JMenu("Theme");
+        themeMenu.setMnemonic(KeyEvent.VK_T);
+
+        ButtonGroup group = new ButtonGroup();
+        String currentLaf = UIManager.getLookAndFeel().getClass().getName();
+
+        for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+            JRadioButtonMenuItem item = new JRadioButtonMenuItem(info.getName());
+            item.setSelected(info.getClassName().equals(currentLaf));
+            item.addActionListener(e -> switchLookAndFeel(info.getClassName(), frame));
+            group.add(item);
+            themeMenu.add(item);
+        }
+
+        menu.add(themeMenu);
         return menu;
+    }
+
+    private static void switchLookAndFeel(String className, MainFrame frame) {
+        try {
+            UIManager.setLookAndFeel(className);
+            for (Window window : Window.getWindows()) {
+                SwingUtilities.updateComponentTreeUI(window);
+            }
+            frame.pack();
+        } catch (Exception ex) {
+            javax.swing.JOptionPane.showMessageDialog(frame,
+                    "Failed to switch theme: " + ex.getMessage(),
+                    "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private static JMenu createHelpMenu(MainFrame frame) {
