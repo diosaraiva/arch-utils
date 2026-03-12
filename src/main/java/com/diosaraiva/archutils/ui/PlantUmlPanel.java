@@ -3,6 +3,7 @@ package com.diosaraiva.archutils.ui;
 import com.diosaraiva.archutils.service.PlantUmlService;
 
 import javax.swing.BorderFactory;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.SwingUtilities;
@@ -127,8 +128,18 @@ public class PlantUmlPanel extends JPanel {
     private void onExportDiagram() {
         String code = inputPanel.getCode();
         String target = exportPanel.getTargetFile();
-        if (code.isEmpty()) { previewPanel.showMessage("PlantUML code is empty."); return; }
-        if (target.isEmpty()) { previewPanel.showMessage("Target file path is empty."); return; }
+        if (code.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "PlantUML code is empty.", "Export Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (target.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Target file path is empty.", "Export Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         previewPanel.showMessage("Exporting diagram...");
         final String tempDir = resolveTempDir();
 
@@ -149,8 +160,16 @@ public class PlantUmlPanel extends JPanel {
                 try {
                     File[] result = get();
                     previewPanel.showDiagram(result[0], result[1]);
+                    JOptionPane.showMessageDialog(PlantUmlPanel.this,
+                            "Diagram exported successfully:\n" + result[0].getAbsolutePath(),
+                            "Export Successful",
+                            JOptionPane.INFORMATION_MESSAGE);
                 } catch (Exception ex) {
                     previewPanel.showMessage("Export error: " + ex.getMessage());
+                    JOptionPane.showMessageDialog(PlantUmlPanel.this,
+                            "Failed to export diagram:\n" + ex.getMessage(),
+                            "Export Error",
+                            JOptionPane.ERROR_MESSAGE);
                 }
             }
         }.execute();
