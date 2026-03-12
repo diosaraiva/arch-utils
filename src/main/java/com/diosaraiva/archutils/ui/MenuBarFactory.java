@@ -68,7 +68,7 @@ public final class MenuBarFactory {
         JMenuItem plantUml = new JMenuItem("PlantUML");
         plantUml.addActionListener(e -> frame.showPanel(frame.getPlantUmlPanel()));
         menu.add(plantUml);
-        JMenuItem csv = new JMenuItem("CSV");
+        JMenuItem csv = new JMenuItem("CSV/JSON/MD");
         csv.addActionListener(e -> frame.showPanel(frame.getCsvPanel()));
         menu.add(csv);
         return menu;
