@@ -5,29 +5,29 @@ package com.diosaraiva.archutils.ui;
  */
 public enum DiagramSample {
 
-    C4_CONTEXT("C4 Context", "c4_context.puml"),
-    C4_CONTAINER("C4 Container", "c4_container.puml"),
-    C4_COMPONENT("C4 Component", "c4_component.puml"),
-    C4_DEPLOYMENT("C4 Deployment", "c4_deployment.puml"),
-    ARCHIMATE_STRATEGY("Archimate Strategy", "archimate_strategy.puml"),
-    ARCHIMATE_BUSINESS("Archimate Business", "archimate_business.puml"),
+    ACTIVITY("Activity", "activity.puml"),
     ARCHIMATE_APPLICATION("Archimate Application", "archimate_application.puml"),
-    ARCHIMATE_TECHNOLOGY("Archimate Technology", "archimate_technology.puml"),
-    ARCHIMATE_PHYSICAL("Archimate Physical", "archimate_physical.puml"),
-    ARCHIMATE_MOTIVATION("Archimate Motivation", "archimate_motivation.puml"),
+    ARCHIMATE_BUSINESS("Archimate Business", "archimate_business.puml"),
     ARCHIMATE_IMPLEMENTATION("Archimate Implementation", "archimate_implementation.puml"),
     ARCHIMATE_LAYERED("Archimate Layered", "archimate_layered.puml"),
-    SEQUENCE("Sequence", "sequence.puml"),
+    ARCHIMATE_MOTIVATION("Archimate Motivation", "archimate_motivation.puml"),
+    ARCHIMATE_PHYSICAL("Archimate Physical", "archimate_physical.puml"),
+    ARCHIMATE_STRATEGY("Archimate Strategy", "archimate_strategy.puml"),
+    ARCHIMATE_TECHNOLOGY("Archimate Technology", "archimate_technology.puml"),
+    C4_COMPONENT("C4 Component", "c4_component.puml"),
+    C4_CONTAINER("C4 Container", "c4_container.puml"),
+    C4_CONTEXT("C4 Context", "c4_context.puml"),
+    C4_DEPLOYMENT("C4 Deployment", "c4_deployment.puml"),
     CLASS("Class", "class.puml"),
-    ACTIVITY("Activity", "activity.puml"),
-    USE_CASE("Use Case", "usecase.puml"),
-    STATE("State", "state.puml"),
     COMPONENT("Component", "component.puml"),
-    OBJECT("Object", "object.puml"),
     DEPLOYMENT("Deployment", "deployment.puml"),
-    TIMING("Timing", "timing.puml"),
+    GANTT("Gantt", "gantt.puml"),
     MINDMAP("Mind Map", "mindmap.puml"),
-    GANTT("Gantt", "gantt.puml");
+    OBJECT("Object", "object.puml"),
+    SEQUENCE("Sequence", "sequence.puml"),
+    STATE("State", "state.puml"),
+    TIMING("Timing", "timing.puml"),
+    USE_CASE("Use Case", "usecase.puml");
 
     private final String displayName;
     private final String fileName;

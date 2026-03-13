@@ -23,6 +23,7 @@ public class PlantUmlInputPanel extends JPanel {
 
     public PlantUmlInputPanel() {
         sampleCombo = new JComboBox<>(DiagramSample.values());
+        sampleCombo.setSelectedItem(DiagramSample.SEQUENCE);
         codeTextArea = new JTextArea(10, 20);
         initComponents();
     }
