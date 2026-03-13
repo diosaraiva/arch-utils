@@ -152,9 +152,10 @@ public class DiagramPreviewPanel extends JPanel {
             return;
         }
         imagePanel.setImage(img);
-        setZoom(1.0);
         cards.show(cardPanel, PNG_CARD);
+        // Defer fit so the viewport has its final size after the card switch
         SwingUtilities.invokeLater(() -> {
+            fitToWindow();
             imageScroll.getVerticalScrollBar().setValue(0);
             imageScroll.getHorizontalScrollBar().setValue(0);
         });
