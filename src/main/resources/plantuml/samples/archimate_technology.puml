@@ -1,0 +1,36 @@
+@startuml
+!include <archimate/Archimate>
+
+title Archimate Technology Layer
+
+Technology_Node(cloud, "Cloud Platform")
+Technology_Node(appServer, "Application Server")
+Technology_Device(firewall, "Firewall Appliance")
+Technology_Device(loadBalancer, "Load Balancer")
+Technology_SystemSoftware(os, "Linux OS")
+Technology_SystemSoftware(container, "Docker Engine")
+Technology_Collaboration(cluster, "K8s Cluster")
+Technology_Interface(https, "HTTPS Endpoint")
+Technology_Path(vpn, "VPN Tunnel")
+Technology_CommunicationNetwork(lan, "Internal LAN")
+Technology_Function(monitoring, "Monitoring")
+Technology_Process(deploy, "CI/CD Pipeline")
+Technology_Interaction(failover, "Failover Procedure")
+Technology_Event(alert, "Health Alert")
+Technology_Service(hosting, "Hosting Service")
+Technology_Artifact(image, "Container Image")
+
+Rel_Composition(cloud, appServer, "hosts")
+Rel_Composition(appServer, os, "runs")
+Rel_Composition(os, container, "runs")
+Rel_Assignment(cluster, container, "orchestrates")
+Rel_Serving(hosting, cloud, "provides")
+Rel_Realization(container, image, "deploys")
+Rel_Triggering(alert, failover, "triggers")
+Rel_Flow(deploy, image, "produces")
+Rel_Association(lan, appServer, "connects")
+Rel_Association(lan, firewall, "connects")
+Rel_Serving(loadBalancer, appServer, "routes to")
+Rel_Serving(https, loadBalancer, "exposes")
+Rel_Access(monitoring, alert, "generates")
+@enduml

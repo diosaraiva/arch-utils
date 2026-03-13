@@ -1,0 +1,31 @@
+@startuml
+!include <archimate/Archimate>
+
+title Archimate Business Layer
+
+Business_Actor(customer, "Customer")
+Business_Actor(employee, "Employee")
+Business_Role(manager, "Account Manager")
+Business_Collaboration(team, "Sales Team")
+Business_Interface(portal, "Customer Portal")
+Business_Process(onboarding, "Customer Onboarding")
+Business_Function(crm, "CRM Management")
+Business_Interaction(negotiation, "Contract Negotiation")
+Business_Event(order, "Order Received")
+Business_Service(svc, "Account Service")
+Business_Object(contract, "Contract")
+Business_Contract(sla, "SLA Agreement")
+Business_Representation(report, "Monthly Report")
+Business_Product(product, "Enterprise Plan")
+
+Rel_Assignment(manager, onboarding, "performs")
+Rel_Assignment(team, negotiation, "participates in")
+Rel_Composition(team, manager, "includes")
+Rel_Serving(svc, customer, "serves")
+Rel_Triggering(order, onboarding, "triggers")
+Rel_Flow(onboarding, negotiation, "leads to")
+Rel_Realization(onboarding, svc, "realizes")
+Rel_Access(onboarding, contract, "creates")
+Rel_Association(product, svc, "includes")
+Rel_Serving(portal, customer, "accessed via")
+@enduml

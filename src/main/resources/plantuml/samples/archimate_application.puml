@@ -1,0 +1,34 @@
+@startuml
+!include <archimate/Archimate>
+
+title Archimate Application Layer
+
+Application_Component(webapp, "Web Application")
+Application_Component(backend, "Backend API")
+Application_Component(auth, "Auth Service")
+Application_Collaboration(integration, "System Integration")
+Application_Interface(restApi, "REST API")
+Application_Interface(ui, "Web UI")
+Application_Function(userMgmt, "User Management")
+Application_Function(reporting, "Reporting")
+Application_Interaction(sync, "Data Synchronization")
+Application_Process(etl, "ETL Process")
+Application_Event(webhook, "Webhook Event")
+Application_Service(appSvc, "Application Service")
+Application_DataObject(userData, "User Data")
+Application_DataObject(auditLog, "Audit Log")
+
+Rel_Composition(webapp, ui, "exposes")
+Rel_Composition(backend, restApi, "exposes")
+Rel_Serving(restApi, webapp, "serves")
+Rel_Assignment(backend, userMgmt, "performs")
+Rel_Assignment(backend, reporting, "performs")
+Rel_Realization(userMgmt, appSvc, "realizes")
+Rel_Access(userMgmt, userData, "reads/writes")
+Rel_Access(reporting, auditLog, "reads")
+Rel_Triggering(webhook, etl, "triggers")
+Rel_Flow(etl, sync, "invokes")
+Rel_Serving(auth, backend, "authenticates")
+Rel_Association(integration, backend, "includes")
+Rel_Association(integration, auth, "includes")
+@enduml

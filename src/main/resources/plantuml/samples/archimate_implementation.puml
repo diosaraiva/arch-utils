@@ -1,0 +1,32 @@
+@startuml
+!include <archimate/Archimate>
+
+title Archimate Implementation & Migration
+
+Implementation_Plateau(current, "Current State")
+Implementation_Plateau(transition, "Transition State")
+Implementation_Plateau(target, "Target State")
+Implementation_Gap(gap1, "Gap: Legacy Decommission")
+Implementation_Gap(gap2, "Gap: Cloud Readiness")
+Implementation_WorkPackage(wp1, "Phase 1: Assessment")
+Implementation_WorkPackage(wp2, "Phase 2: Migration")
+Implementation_WorkPackage(wp3, "Phase 3: Optimization")
+Implementation_Deliverable(report, "Assessment Report")
+Implementation_Deliverable(infra, "Cloud Infrastructure")
+Implementation_Deliverable(docs, "Runbooks & Documentation")
+Implementation_Event(kickoff, "Project Kickoff")
+Implementation_Event(golive, "Go-Live Milestone")
+
+Rel_Triggering(kickoff, wp1, "starts")
+Rel_Triggering(wp1, wp2, "followed by")
+Rel_Triggering(wp2, wp3, "followed by")
+Rel_Triggering(wp3, golive, "completes at")
+Rel_Realization(wp1, report, "produces")
+Rel_Realization(wp2, infra, "produces")
+Rel_Realization(wp3, docs, "produces")
+Rel_Association(current, gap1, "has")
+Rel_Association(transition, gap2, "has")
+Rel_Composition(transition, wp1, "includes")
+Rel_Composition(transition, wp2, "includes")
+Rel_Composition(target, wp3, "includes")
+@enduml

@@ -1,0 +1,38 @@
+@startuml
+!include <archimate/Archimate>
+
+title Archimate Motivation Layer
+
+Motivation_Stakeholder(ceo, "CEO")
+Motivation_Stakeholder(cto, "CTO")
+Motivation_Stakeholder(customer, "Customer")
+Motivation_Driver(growth, "Market Growth")
+Motivation_Driver(efficiency, "Operational Efficiency")
+Motivation_Assessment(gap, "Legacy System Gap")
+Motivation_Assessment(risk, "Security Risk")
+Motivation_Goal(digital, "Digital Transformation")
+Motivation_Goal(reliability, "99.9% Uptime")
+Motivation_Outcome(satisfaction, "Customer Satisfaction")
+Motivation_Outcome(savings, "Cost Savings")
+Motivation_Principle(security, "Security by Design")
+Motivation_Principle(agile, "Agile Delivery")
+Motivation_Requirement(compliance, "GDPR Compliance")
+Motivation_Constraint(budget, "Budget Limit")
+Motivation_Meaning(trust, "Customer Trust")
+Motivation_Value(revenue, "Increased Revenue")
+
+Rel_Association(ceo, growth, "concerned with")
+Rel_Association(cto, efficiency, "concerned with")
+Rel_Association(customer, satisfaction, "desires")
+Rel_Influence(growth, digital, "motivates")
+Rel_Influence(efficiency, reliability, "motivates")
+Rel_Influence(gap, digital, "identified by")
+Rel_Influence(risk, security, "drives")
+Rel_Realization(digital, satisfaction, "achieves")
+Rel_Realization(reliability, savings, "achieves")
+Rel_Aggregation(digital, compliance, "includes")
+Rel_Association(security, compliance, "supports")
+Rel_Association(budget, digital, "constrains")
+Rel_Association(satisfaction, trust, "creates")
+Rel_Association(trust, revenue, "leads to")
+@enduml

@@ -1,0 +1,28 @@
+@startuml
+!include <archimate/Archimate>
+
+title Archimate Physical Layer
+
+Physical_Facility(dc1, "Primary Data Center")
+Physical_Facility(dc2, "Disaster Recovery Site")
+Physical_Equipment(rack1, "Server Rack A")
+Physical_Equipment(rack2, "Server Rack B")
+Physical_Equipment(storage, "SAN Storage")
+Physical_DistributionNetwork(fiber, "Fiber Backbone")
+Physical_Material(media, "Backup Tapes")
+
+Technology_Node(server1, "Production Server")
+Technology_Node(server2, "DR Server")
+Technology_Device(switch1, "Network Switch")
+
+Rel_Composition(dc1, rack1, "contains")
+Rel_Composition(dc1, rack2, "contains")
+Rel_Composition(dc2, storage, "contains")
+Rel_Assignment(rack1, server1, "hosts")
+Rel_Assignment(rack2, switch1, "hosts")
+Rel_Assignment(dc2, server2, "hosts")
+Rel_Association(fiber, dc1, "connects")
+Rel_Association(fiber, dc2, "connects")
+Rel_Realization(storage, media, "stores on")
+Rel_Serving(server1, server2, "replicates to")
+@enduml
