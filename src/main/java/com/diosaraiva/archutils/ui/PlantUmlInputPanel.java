@@ -36,7 +36,7 @@ public class PlantUmlInputPanel extends JPanel {
         gbc.gridwidth = 1;
         gbc.weightx = 0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        add(new JLabel("Code:"), gbc);
+        add(new JLabel("Samples:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
