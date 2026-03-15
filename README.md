@@ -3,5 +3,5 @@
 ## Future releases:
 - Archimate Themes Samples
 - ArchiMate Model Exchange File (.xml) Export
-- AWS Support
+- PlantUML AWS Support
 - XMI and Editable Swing Table Rendering
