@@ -1,0 +1,431 @@
+<!-- READ THIS COMMENT | This comment should not be changed and always considered | CDN over local code always | Alpine.js to reduce code | PicoCSS for layout/components | bpmn-js for BPMN rendering | dmn-js for DMN rendering -->
+<!DOCTYPE html>
+<html lang="en" x-data="{dk:false}" :data-theme="dk?'dark':'light'">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BPMN + DMN Viewer</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700;800&display=swap"/>
+<!-- bpmn-js CSS -->
+<link rel="stylesheet" href="https://unpkg.com/bpmn-js@17/dist/assets/diagram-js.css"/>
+<link rel="stylesheet" href="https://unpkg.com/bpmn-js@17/dist/assets/bpmn-js.css"/>
+<link rel="stylesheet" href="https://unpkg.com/bpmn-js@17/dist/assets/bpmn-font/css/bpmn.css"/>
+<!-- dmn-js CSS -->
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@14/dist/assets/diagram-js.css"/>
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@14/dist/assets/dmn-js-shared.css"/>
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@14/dist/assets/dmn-js-drd.css"/>
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@14/dist/assets/dmn-js-decision-table.css"/>
+<link rel="stylesheet" href="https://unpkg.com/dmn-js@14/dist/assets/dmn-font/css/dmn.css"/>
+<!-- bpmn-js + dmn-js MUST load synchronously (no defer/async) before Alpine -->
+<script src="https://unpkg.com/bpmn-js@17/dist/bpmn-viewer.production.min.js"></script>
+<script src="https://unpkg.com/dmn-js@14/dist/dmn-viewer.production.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+<style>
+:root{
+  --Y:#4CAF50;--K:#23282d;--r:6px;
+  --page:#fff;--bg:#F5F7F8;--b:#E0E0E0;--text:#333;--muted:#666;
+  --card:#fff;--sum:#333;
+  --btn:#23282d;--btntxt:#ffffff;--btn2:#4CAF50;--btn2txt:#ffffff;
+  --code:#f0f0f0;--codetxt:#23282d;
+  --pico-font-family-sans-serif:'Open Sans',sans-serif;
+  --pico-font-size:15px;--pico-line-height:1.7;
+  --pico-color:var(--text);--pico-background-color:var(--page);
+  --pico-border-radius:var(--r);--pico-table-border-color:var(--b);
+  --pico-h1-color:var(--K);--pico-h2-color:var(--K);--pico-h3-color:var(--K);
+  --pico-muted-color:var(--muted);--pico-muted-border-color:var(--b);
+  --pico-code-background-color:var(--code);--pico-code-color:var(--codetxt);
+  --pico-mark-background-color:rgba(76,175,80,.25);--pico-mark-color:var(--K);
+}
+[data-theme="dark"]{
+  --page:#1a1a1a;--bg:#252525;--b:#383838;--text:#e0e0e0;--muted:#888;
+  --card:#252525;--sum:#ccc;
+  --btn:#4CAF50;--btntxt:#ffffff;--btn2:transparent;--btn2txt:#4CAF50;
+  --code:#2a2a2a;--codetxt:#e0e0e0;
+  --pico-color:var(--text);--pico-background-color:var(--page);
+  --pico-h1-color:#fff;--pico-h2-color:#fff;--pico-h3-color:#fff;
+  --pico-muted-color:var(--muted);--pico-muted-border-color:var(--b);
+  --pico-code-background-color:var(--code);--pico-code-color:var(--codetxt);
+  --pico-table-border-color:var(--b);
+}
+:is(button,a[role="button"]){
+  padding:.5rem 1.25rem;font-family:'Open Sans',sans-serif;font-weight:600;
+  font-size:.875rem;border-radius:var(--r);border:2px solid;cursor:pointer;
+  line-height:1.4;transition:filter .15s,background .15s,color .15s}
+:is(button,a[role="button"]):not(.dl):not(.secondary):not(.contrast):not([disabled]){
+  background:var(--btn);border-color:var(--btn);color:var(--btntxt)}
+:is(button,a[role="button"]):not(.dl):not(.secondary):not(.contrast):not([disabled]):hover{filter:brightness(1.15)}
+button.secondary{background:var(--btn2);border-color:var(--Y);color:var(--btn2txt)}
+button.secondary:hover{filter:brightness(.95)}
+button.contrast{background:transparent;border-color:var(--text);color:var(--text)}
+button.contrast:hover{background:var(--btn);border-color:var(--btn);color:var(--btntxt)}
+button[disabled]{opacity:.45;cursor:not-allowed;background:var(--btn);border-color:var(--btn);color:var(--btntxt)}
+.dl{display:inline-flex;align-items:center;width:fit-content;padding:4px 12px;
+  font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  background:var(--btn);color:var(--btntxt);border:none;border-radius:var(--r);cursor:pointer;transition:filter .15s}
+.dl:hover{filter:brightness(1.15)}
+.theme-sel{background:rgba(76,175,80,.12);border:1px solid rgba(76,175,80,.3);color:var(--Y);
+  font-family:'Open Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;padding:4px 10px;border-radius:20px;cursor:pointer;
+  appearance:none;-webkit-appearance:none;outline:none}
+.theme-sel:focus{border-color:rgba(76,175,80,.6);box-shadow:none!important}
+ul li::marker{color:var(--Y)}
+a{color:var(--text)}a:hover{text-decoration-color:var(--Y)}
+mark{background:rgba(76,175,80,.25);color:var(--K)}
+h2{font-size:20px;font-weight:800;padding:12px 0;margin-bottom:24px;border-bottom:3px solid var(--Y);display:flex;align-items:center;gap:10px}
+h3{font-size:16px;font-weight:700;margin:28px 0 12px;padding-left:12px;border-left:4px solid var(--Y)}
+h4{font-size:14px;font-weight:700;color:var(--muted);margin:20px 0 8px}
+blockquote{border-left:4px solid var(--Y);background:rgba(76,175,80,.06);padding:12px 16px;margin:16px 0;border-radius:0 var(--r) var(--r) 0}
+pre{background:var(--K);color:#f5f5f5;border-radius:var(--r)}
+code{background:var(--code);color:var(--codetxt);font-size:.87em;padding:.15em .4em;border-radius:3px}
+pre code{background:none;color:inherit;padding:0;font-size:.875rem}
+/* neutralise PicoCSS table styles inside diagrams */
+.diagram-wrap table,.diagram-wrap thead,.diagram-wrap tbody,
+.diagram-wrap th,.diagram-wrap td,.diagram-wrap tr{all:revert}
+.diagram-wrap button,.diagram-wrap input,.diagram-wrap select{all:revert;cursor:pointer}
+.badge{display:inline-flex;background:var(--K);color:var(--Y);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.05em;text-transform:uppercase;margin:2px}
+.ib{background:var(--bg);border-left:4px solid var(--Y);padding:16px 20px;border-radius:0 var(--r) var(--r) 0;margin:16px 0;font-size:14px;color:var(--text)}
+.ib strong{color:var(--text)}.ib.dk{background:var(--K);color:#fff}.ib.dk strong{color:var(--Y)}
+.hero{background:var(--K);color:#fff;padding:60px 40px 50px;text-align:center;position:relative;overflow:hidden}
+.hero::after{content:'';position:absolute;bottom:0;left:0;right:0;height:6px;background:var(--Y)}
+.hero h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:6px;color:#fff;border:none;padding:0;display:block}
+.hero h1 span{color:var(--Y)}.hero .sub{font-size:16px;font-weight:300;color:#ccc;margin-bottom:4px}
+.hero .sub strong{color:var(--Y);font-weight:700}.hero .loc{font-size:13px;color:#999}
+.hero .version{display:inline-block;margin-top:18px;background:rgba(76,175,80,.15);border:1px solid rgba(76,175,80,.4);color:var(--Y);font-size:11px;font-weight:600;padding:4px 14px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase}
+.hero-ctrl{position:absolute;top:16px;right:20px}
+.container{max-width:980px;margin:0 auto;padding:0 30px}
+section{margin:50px 0}
+.num{background:var(--Y);color:var(--K);font-size:13px;font-weight:800;width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.toc{background:var(--bg);border:1px solid var(--b);border-radius:var(--r);padding:30px 36px;margin:40px auto;max-width:640px}
+.toc h2{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--Y);border-left:none;padding-left:0;display:block}
+.toc ol{list-style:none!important;counter-reset:toc;padding:0!important;margin:0}
+.toc li{counter-increment:toc;padding:5px 0;font-size:14px;list-style:none}
+.toc li::before{content:counter(toc,decimal-leading-zero)".";font-weight:700;color:var(--Y);margin-right:8px;font-size:13px}
+.toc li::marker{content:none}
+.toc a{color:var(--sum);text-decoration:none;border-bottom:1px solid transparent;transition:.2s}
+.toc a:hover{color:var(--K);border-bottom-color:var(--Y)}
+footer{background:var(--K);color:#ffffff;text-align:center;padding:24px;margin-top:60px;font-size:12px;font-weight:600}
+footer a{color:var(--Y);text-decoration:none}
+/* ── diagram container ── */
+.diagram-wrap{border:1px solid var(--b);background:var(--bg);border-radius:var(--r);overflow:hidden;position:relative}
+.diagram-wrap.h480{height:480px}
+/* ── toolbar ── */
+.diag-toolbar{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:4px;gap:8px;flex-wrap:wrap}
+.diag-left{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.diag-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* ── XML editor ── */
+.editor-panel{border:1px solid var(--b);border-radius:var(--r);overflow:hidden;margin-bottom:4px}
+.editor-panel textarea{
+  display:block;width:100%;height:220px;padding:12px;margin:0;
+  font-family:'Courier New',monospace;font-size:11.5px;line-height:1.6;
+  background:var(--K);color:#f0f0f0;
+  border:none;outline:none;resize:vertical;box-sizing:border-box}
+.editor-panel textarea:focus{border:none;outline:none;box-shadow:none}
+.editor-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 10px;background:var(--bg);border-top:1px solid var(--b);gap:8px}
+.editor-footer span{font-size:11px;color:var(--muted)}
+.xml-err{font-size:11px;color:#ef4444;padding:5px 10px;
+  background:rgba(239,68,68,.08);border-top:1px solid rgba(239,68,68,.2)}
+@media print{
+  .hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .diagram-wrap{break-inside:avoid}
+  .diag-toolbar,.editor-panel,.hero-ctrl{display:none}
+  section{page-break-inside:avoid}
+  .toc{page-break-after:always}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-ctrl">
+    <select class="theme-sel" @change="dk=$event.target.value==='dark'">
+      <option value="light">☀ Light</option>
+      <option value="dark">◑ Dark</option>
+    </select>
+  </div>
+  <h1>BPMN + DMN<br><span>Viewer</span></h1>
+  <div class="sub"><strong>BPMN-js</strong> &nbsp;|&nbsp; <strong>DMN-js</strong> &nbsp;|&nbsp; <strong>Alpine.js</strong> &nbsp;|&nbsp; <strong>PicoCSS</strong></div>
+  <div class="loc">Order Fulfillment process · Loan Approval decision table</div>
+  <div class="version">CDN only &nbsp;•&nbsp; BPMN 2.0 &nbsp;•&nbsp; DMN 1.3</div>
+</header>
+
+<div class="container" x-data="{dk:false}">
+
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li><a href="#s1">BPMN — Order Fulfillment Process</a></li>
+    <li><a href="#s2">DMN — Loan Approval Decision</a></li>
+  </ol>
+</div>
+
+<!-- §1 BPMN -->
+<section id="s1">
+<h2><span class="num">1</span> BPMN — Order Fulfillment Process</h2>
+<p>Full BPMN 2.0 diagram rendered with <strong>bpmn-js</strong> via CDN. Uses a parallel gateway to run <em>Process Payment</em> and <em>Check Inventory</em> concurrently before the warehouse pick-and-pack step.</p>
+<div class="ib"><strong>Elements:</strong> 1 Start · 2 End · 5 Service Tasks · 1 User Task · 1 Exclusive Gateway · 2 Parallel Gateways · 13 Sequence Flows</div>
+
+<div x-data="bpmnEditor()">
+  <!-- collapsible XML editor -->
+  <div class="editor-panel" x-show="open" x-transition x-cloak>
+    <textarea x-model="xml" spellcheck="false"></textarea>
+    <div class="editor-footer">
+      <span>BPMN 2.0 XML — edit &amp; click Apply to re-render</span>
+      <button class="dl" @click="apply()">▶ Apply</button>
+    </div>
+    <div class="xml-err" x-show="err" x-text="err" x-cloak></div>
+  </div>
+  <!-- toolbar: editor toggle (left) | svg download (right) -->
+  <div class="diag-toolbar">
+    <div class="diag-left">
+      <button class="dl" @click="open=!open" x-text="open?'✕ Close editor':'✎ Edit XML'">✎ Edit XML</button>
+    </div>
+    <div class="diag-right">
+      <button class="dl" @click="saveSvg()">↓ svg</button>
+    </div>
+  </div>
+  <div class="diagram-wrap h480" id="bpmn-canvas"></div>
+</div>
+</section>
+
+<!-- §2 DMN -->
+<section id="s2">
+<h2><span class="num">2</span> DMN — Loan Approval Decision</h2>
+<p>Decision table rendered with <strong>dmn-js</strong> via CDN. Uses a <code>FIRST</code> hit policy — the first matching rule wins. Switch to <strong>DRD</strong> to see the Decision Requirements Diagram.</p>
+<div class="ib"><strong>Inputs:</strong> age (integer), creditScore (integer) &nbsp;|&nbsp; <strong>Outputs:</strong> approved, reason &nbsp;|&nbsp; <strong>Rules:</strong> 5 &nbsp;|&nbsp; <strong>Hit policy:</strong> FIRST</div>
+
+<div x-data="dmnEditor()">
+  <!-- collapsible XML editor -->
+  <div class="editor-panel" x-show="open" x-transition x-cloak>
+    <textarea x-model="xml" spellcheck="false"></textarea>
+    <div class="editor-footer">
+      <span>DMN 1.3 XML — edit &amp; click Apply to re-render</span>
+      <button class="dl" @click="apply()">▶ Apply</button>
+    </div>
+    <div class="xml-err" x-show="err" x-text="err" x-cloak></div>
+  </div>
+  <!-- toolbar: editor toggle (left) | view tabs + svg (right) -->
+  <div class="diag-toolbar">
+    <div class="diag-left">
+      <button class="dl" @click="open=!open" x-text="open?'✕ Close editor':'✎ Edit XML'">✎ Edit XML</button>
+    </div>
+    <div class="diag-right">
+      <button class="dl" @click="switchView('decisionTable')"
+        :style="view==='decisionTable'?'':'opacity:.55'">Decision Table</button>
+      <button class="dl" @click="switchView('drd')"
+        :style="view==='drd'?'':'opacity:.55'">DRD</button>
+      <button class="dl" x-show="view==='drd'" x-cloak @click="saveSvg()">↓ svg</button>
+    </div>
+  </div>
+  <div class="diagram-wrap" id="dmn-canvas" style="min-height:260px;overflow:auto"></div>
+</div>
+</section>
+
+</div>
+
+<footer>
+  <strong>CDNWebTemplate</strong> – BPMN + DMN Template &nbsp;|&nbsp; March 2026<br>
+  <a href="https://github.com/diosaraiva/arch-utils" target="_blank">github.com/diosaraiva/arch-utils</a>
+</footer>
+
+<!-- ── Embedded XML ─────────────────────────────────────── -->
+<script id="bpmn-xml" type="text/plain">
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             id="definitions_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <process id="orderFulfillment" name="Order Fulfillment" isExecutable="true">
+    <startEvent id="start_1" name="Order Placed"><outgoing>f1</outgoing></startEvent>
+    <serviceTask id="task_validate" name="Validate Order"><incoming>f1</incoming><outgoing>f2</outgoing></serviceTask>
+    <exclusiveGateway id="gw_valid" name="Order Valid?"><incoming>f2</incoming><outgoing>f3</outgoing><outgoing>f4</outgoing></exclusiveGateway>
+    <serviceTask id="task_reject" name="Send Rejection Email"><incoming>f4</incoming><outgoing>f5</outgoing></serviceTask>
+    <endEvent id="end_rejected" name="Order Rejected"><incoming>f5</incoming></endEvent>
+    <parallelGateway id="gw_split"><incoming>f3</incoming><outgoing>f6</outgoing><outgoing>f7</outgoing></parallelGateway>
+    <serviceTask id="task_payment" name="Process Payment"><incoming>f6</incoming><outgoing>f8</outgoing></serviceTask>
+    <serviceTask id="task_inventory" name="Check Inventory"><incoming>f7</incoming><outgoing>f9</outgoing></serviceTask>
+    <parallelGateway id="gw_join"><incoming>f8</incoming><incoming>f9</incoming><outgoing>f10</outgoing></parallelGateway>
+    <userTask id="task_pickpack" name="Pick &amp; Pack Items"><incoming>f10</incoming><outgoing>f11</outgoing></userTask>
+    <serviceTask id="task_shipping" name="Generate Shipping Label"><incoming>f11</incoming><outgoing>f12</outgoing></serviceTask>
+    <serviceTask id="task_update" name="Update Order Status"><incoming>f12</incoming><outgoing>f13</outgoing></serviceTask>
+    <endEvent id="end_fulfilled" name="Order Fulfilled"><incoming>f13</incoming></endEvent>
+    <sequenceFlow id="f1"  sourceRef="start_1"        targetRef="task_validate"/>
+    <sequenceFlow id="f2"  sourceRef="task_validate"   targetRef="gw_valid"/>
+    <sequenceFlow id="f3"  sourceRef="gw_valid"        targetRef="gw_split"         name="Yes"/>
+    <sequenceFlow id="f4"  sourceRef="gw_valid"        targetRef="task_reject"      name="No"/>
+    <sequenceFlow id="f5"  sourceRef="task_reject"     targetRef="end_rejected"/>
+    <sequenceFlow id="f6"  sourceRef="gw_split"        targetRef="task_payment"/>
+    <sequenceFlow id="f7"  sourceRef="gw_split"        targetRef="task_inventory"/>
+    <sequenceFlow id="f8"  sourceRef="task_payment"    targetRef="gw_join"/>
+    <sequenceFlow id="f9"  sourceRef="task_inventory"  targetRef="gw_join"/>
+    <sequenceFlow id="f10" sourceRef="gw_join"         targetRef="task_pickpack"/>
+    <sequenceFlow id="f11" sourceRef="task_pickpack"   targetRef="task_shipping"/>
+    <sequenceFlow id="f12" sourceRef="task_shipping"   targetRef="task_update"/>
+    <sequenceFlow id="f13" sourceRef="task_update"     targetRef="end_fulfilled"/>
+  </process>
+  <bpmndi:BPMNDiagram id="diagram_1">
+    <bpmndi:BPMNPlane id="plane_1" bpmnElement="orderFulfillment">
+      <bpmndi:BPMNShape id="s_start"     bpmnElement="start_1">      <dc:Bounds x="152" y="252" width="36"  height="36"/><bpmndi:BPMNLabel><dc:Bounds x="135" y="295" width="73" height="14"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_validate"  bpmnElement="task_validate"> <dc:Bounds x="240" y="230" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_gvalid"    bpmnElement="gw_valid"       isMarkerVisible="true"><dc:Bounds x="395" y="245" width="50" height="50"/><bpmndi:BPMNLabel><dc:Bounds x="374" y="302" width="73" height="14"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_reject"    bpmnElement="task_reject">   <dc:Bounds x="370" y="380" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_end_rej"   bpmnElement="end_rejected">  <dc:Bounds x="522" y="402" width="36"  height="36"/><bpmndi:BPMNLabel><dc:Bounds x="499" y="445" width="82" height="14"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_split"     bpmnElement="gw_split">      <dc:Bounds x="505" y="245" width="50"  height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_payment"   bpmnElement="task_payment">  <dc:Bounds x="620" y="160" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_inventory" bpmnElement="task_inventory"> <dc:Bounds x="620" y="310" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_join"      bpmnElement="gw_join">       <dc:Bounds x="785" y="245" width="50"  height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_pickpack"  bpmnElement="task_pickpack"> <dc:Bounds x="890" y="230" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_shipping"  bpmnElement="task_shipping"> <dc:Bounds x="1050" y="230" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_update"    bpmnElement="task_update">   <dc:Bounds x="1210" y="230" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_end_ful"   bpmnElement="end_fulfilled"> <dc:Bounds x="1372" y="252" width="36"  height="36"/><bpmndi:BPMNLabel><dc:Bounds x="1349" y="295" width="82" height="14"/></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="e_f1"  bpmnElement="f1"> <di:waypoint x="188" y="270"/><di:waypoint x="240"  y="270"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f2"  bpmnElement="f2"> <di:waypoint x="340" y="270"/><di:waypoint x="395"  y="270"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f3"  bpmnElement="f3"> <di:waypoint x="445" y="270"/><di:waypoint x="505"  y="270"/><bpmndi:BPMNLabel><dc:Bounds x="462" y="252" width="22" height="14"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f4"  bpmnElement="f4"> <di:waypoint x="420" y="295"/><di:waypoint x="420"  y="380"/><bpmndi:BPMNLabel><dc:Bounds x="427" y="330" width="15" height="14"/></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f5"  bpmnElement="f5"> <di:waypoint x="470" y="420"/><di:waypoint x="522"  y="420"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f6"  bpmnElement="f6"> <di:waypoint x="530" y="245"/><di:waypoint x="530"  y="200"/><di:waypoint x="620" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f7"  bpmnElement="f7"> <di:waypoint x="530" y="295"/><di:waypoint x="530"  y="350"/><di:waypoint x="620" y="350"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f8"  bpmnElement="f8"> <di:waypoint x="720" y="200"/><di:waypoint x="810"  y="200"/><di:waypoint x="810" y="245"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f9"  bpmnElement="f9"> <di:waypoint x="720" y="350"/><di:waypoint x="810"  y="350"/><di:waypoint x="810" y="295"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f10" bpmnElement="f10"><di:waypoint x="835" y="270"/><di:waypoint x="890"  y="270"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f11" bpmnElement="f11"><di:waypoint x="990" y="270"/><di:waypoint x="1050" y="270"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f12" bpmnElement="f12"><di:waypoint x="1150" y="270"/><di:waypoint x="1210" y="270"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f13" bpmnElement="f13"><di:waypoint x="1310" y="270"/><di:waypoint x="1372" y="270"/></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
+</script>
+
+<script id="dmn-xml" type="text/plain">
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="definitions_1" name="Loan Approval" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="loanApproval" name="Loan Approval">
+    <decisionTable id="dt_1" hitPolicy="FIRST">
+      <input id="in_age" label="Age">
+        <inputExpression id="ie_age" typeRef="integer"><text>age</text></inputExpression>
+      </input>
+      <input id="in_score" label="Credit Score">
+        <inputExpression id="ie_score" typeRef="integer"><text>creditScore</text></inputExpression>
+      </input>
+      <output id="out_approved" label="Approved" name="approved" typeRef="string"/>
+      <output id="out_reason"   label="Reason"   name="reason"   typeRef="string"/>
+      <rule id="r1"><inputEntry id="r1_1"><text>&lt; 18</text></inputEntry><inputEntry id="r1_2"><text></text></inputEntry><outputEntry id="r1_3"><text>"No"</text></outputEntry><outputEntry id="r1_4"><text>"Minor applicant"</text></outputEntry></rule>
+      <rule id="r2"><inputEntry id="r2_1"><text>&gt;= 18</text></inputEntry><inputEntry id="r2_2"><text>&gt;= 750</text></inputEntry><outputEntry id="r2_3"><text>"Yes"</text></outputEntry><outputEntry id="r2_4"><text>"Excellent credit score"</text></outputEntry></rule>
+      <rule id="r3"><inputEntry id="r3_1"><text>&gt;= 18</text></inputEntry><inputEntry id="r3_2"><text>[600..749]</text></inputEntry><outputEntry id="r3_3"><text>"Yes"</text></outputEntry><outputEntry id="r3_4"><text>"Good credit score"</text></outputEntry></rule>
+      <rule id="r4"><inputEntry id="r4_1"><text>&gt;= 18</text></inputEntry><inputEntry id="r4_2"><text>[500..599]</text></inputEntry><outputEntry id="r4_3"><text>"Review"</text></outputEntry><outputEntry id="r4_4"><text>"Manual review required"</text></outputEntry></rule>
+      <rule id="r5"><inputEntry id="r5_1"><text>&gt;= 18</text></inputEntry><inputEntry id="r5_2"><text>&lt; 500</text></inputEntry><outputEntry id="r5_3"><text>"No"</text></outputEntry><outputEntry id="r5_4"><text>"Credit score too low"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="loanApproval"><dc:Bounds x="150" y="150" width="180" height="80"/></dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>
+</script>
+
+<script>
+const BPMN_DEFAULT = document.getElementById('bpmn-xml').textContent.trim();
+const DMN_DEFAULT  = document.getElementById('dmn-xml').textContent.trim();
+
+document.addEventListener('alpine:init', () => {
+
+  Alpine.data('bpmnEditor', () => ({
+    open: false,
+    xml:  BPMN_DEFAULT,
+    err:  '',
+    _v:   null,
+
+    init() {
+      // slight delay so the container is in the DOM
+      this.$nextTick(() => {
+        this._v = new BpmnJS({ container: document.getElementById('bpmn-canvas') });
+        this._load(this.xml);
+      });
+    },
+
+    async _load(xml) {
+      this.err = '';
+      try {
+        await this._v.importXML(xml);
+        this._v.get('canvas').zoom('fit-viewport');
+      } catch (e) {
+        this.err = '⚠ ' + (e.message || 'Invalid BPMN XML');
+      }
+    },
+
+    apply()  { this._load(this.xml); },
+
+    async saveSvg() {
+      try {
+        const { svg } = await this._v.saveSVG();
+        const a = document.createElement('a');
+        a.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+        a.download = 'order-fulfillment.svg';
+        a.click();
+      } catch (e) { alert('SVG export failed: ' + e.message); }
+    }
+  }));
+
+  Alpine.data('dmnEditor', () => ({
+    open: false,
+    xml:  DMN_DEFAULT,
+    err:  '',
+    view: 'decisionTable',
+    _v:   null,
+
+    init() {
+      this.$nextTick(() => {
+        this._v = new DmnJS({ container: document.getElementById('dmn-canvas') });
+        this._load(this.xml);
+      });
+    },
+
+    async _load(xml) {
+      this.err = '';
+      try {
+        await this._v.importXML(xml);
+        this._open(this.view);
+      } catch (e) {
+        this.err = '⚠ ' + (e.message || 'Invalid DMN XML');
+      }
+    },
+
+    _open(type) {
+      const v = (this._v.getViews() || []).find(v => v.type === type);
+      if (!v) return;
+      this._v.open(v);
+      if (type === 'drd') {
+        setTimeout(() => {
+          try { this._v.getActiveViewer().get('canvas').zoom('fit-viewport'); } catch (_) {}
+        }, 80);
+      }
+    },
+
+    switchView(type) { this.view = type; this._open(type); },
+    apply()          { this._load(this.xml); },
+
+    async saveSvg() {
+      try {
+        const av = this._v.getActiveViewer();
+        if (!av?.saveSVG) { alert('SVG export only available in DRD view.'); return; }
+        const { svg } = await av.saveSVG();
+        const a = document.createElement('a');
+        a.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+        a.download = 'loan-approval-drd.svg';
+        a.click();
+      } catch (e) { alert('SVG export failed: ' + e.message); }
+    }
+  }));
+
+});
+</script>
+</body>
+</html>
