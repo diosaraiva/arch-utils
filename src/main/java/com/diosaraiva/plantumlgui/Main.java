@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 import com.diosaraiva.plantumlgui.service.PlantUmlConsole;
 import com.diosaraiva.plantumlgui.ui.main.MainFrame;
@@ -19,6 +20,8 @@ public class Main {
     public static void main(String[] args) {
         System.setProperty("apple.awt.application.name", "PlantUML GUI");
 
+        applyMetalTheme();
+
         PlantUmlConsole.global().install();
 
         I18n.setLocale(AppSettings.getLanguage());
@@ -30,6 +33,14 @@ public class Main {
             PlantUmlOutputConsolePanel.startBackground();
             new MainFrame().setVisible(true);
         });
+    }
+
+    private static void applyMetalTheme() {
+        try {
+            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+        } catch (ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException ex) {
+            System.err.println("Could not apply Metal look and feel: " + ex.getMessage());
+        }
     }
 
     private static void cleanTempDir() {
