@@ -10,6 +10,7 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 
+import com.diosaraiva.plantumlgui.ui.plantuml.PlantUmlPanel;
 import com.diosaraiva.plantumlgui.util.I18n;
 
 public class MainFrame extends JFrame {
@@ -38,7 +39,7 @@ public class MainFrame extends JFrame {
         contentPanel.add(plantUmlPanel, BorderLayout.CENTER);
         add(contentPanel, BorderLayout.CENTER);
 
-        setJMenuBar(MenuBarFactory.create(this));
+        setJMenuBar(MenuBar.create(this));
         pack();
         setLocationRelativeTo(null);
     }
@@ -46,7 +47,7 @@ public class MainFrame extends JFrame {
     public void reloadLanguage() {
         SwingUtilities.invokeLater(() -> {
             setTitle(I18n.get("app.title"));
-            setJMenuBar(MenuBarFactory.create(this));
+            setJMenuBar(MenuBar.create(this));
             plantUmlPanel.applyLanguage();
             revalidate();
             repaint();
@@ -70,7 +71,7 @@ public class MainFrame extends JFrame {
         setSize(w, h);
         setLocationRelativeTo(null);
 
-        setJMenuBar(MenuBarFactory.create(this));
+        setJMenuBar(MenuBar.create(this));
         revalidate();
         repaint();
     }

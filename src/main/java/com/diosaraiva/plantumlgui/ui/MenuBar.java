@@ -30,7 +30,7 @@ import com.diosaraiva.plantumlgui.service.AppSettings;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 
-public final class MenuBarFactory {
+public final class MenuBar {
 
     private static final List<String> FONT_CHOICES = List.of(
             "Dialog", "SansSerif", "Serif", "Monospaced",
@@ -68,7 +68,7 @@ public final class MenuBarFactory {
             new Resolution(1600, 900),
             new Resolution(1920, 1080));
 
-    private MenuBarFactory() { }
+    private MenuBar() { }
 
     public static JMenuBar create(MainFrame frame) {
         var bar = new JMenuBar();
