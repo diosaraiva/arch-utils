@@ -100,9 +100,10 @@ Exporting to **ArchiMate Exchange (.xml)** converts the PlantUML source into an 
   - **Quit** — exit the app.
 - **Edit**
   - **Undo** / **Redo** — editor history.
-  - **Copy Code** — copy the selected code (or all code).
+  - **Copy** — copy the selected code (or all code).
   - **Copy Image** — copy the rendered diagram image.
   - **Paste** — paste into the editor.
+  - **Select All** — select all code in the editor.
 - **Settings**
   - **Theme** — switch the Swing look and feel.
   - **Font** — change the UI font family.
@@ -119,9 +120,10 @@ Exporting to **ArchiMate Exchange (.xml)** converts the PlantUML source into an 
 |--------------|-----------------------------------|
 | Undo         | `⌘`/`Ctrl` + `Z`                  |
 | Redo         | `⌘`/`Ctrl` + `Shift` + `Z` or `Ctrl` + `Y` |
-| Copy Code    | `⌘`/`Ctrl` + `C`                  |
+| Copy         | `⌘`/`Ctrl` + `C`                  |
 | Copy Image   | `⌘`/`Ctrl` + `Shift` + `C`        |
 | Paste        | `⌘`/`Ctrl` + `V`                  |
+| Select All   | `⌘`/`Ctrl` + `A`                  |
 
 ---
 

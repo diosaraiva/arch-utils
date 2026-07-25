@@ -122,6 +122,8 @@ public final class MenuBarFactory {
                 e -> frame.getPlantUmlPanel().copyImageToClipboard()));
         menu.add(menuItem(I18n.get("menu.edit.paste"), KeyEvent.VK_P,
                 KeyStroke.getKeyStroke(KeyEvent.VK_V, mod), e -> input.paste()));
+        menu.add(menuItem(I18n.get("menu.edit.selectAll"), KeyEvent.VK_A,
+                KeyStroke.getKeyStroke(KeyEvent.VK_A, mod), e -> input.selectAll()));
 
         Runnable sync = () -> {
             undo.setEnabled(input.canUndo());

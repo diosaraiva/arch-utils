@@ -206,6 +206,12 @@ public class PlantUmlInputPanel extends JPanel {
         codeTextArea.paste();
     }
 
+    public void selectAll() {
+        inputTabs.setSelectedIndex(0);
+        codeTextArea.requestFocusInWindow();
+        codeTextArea.selectAll();
+    }
+
     public void addUndoStateListener(Runnable listener) {
         undoStateListeners.add(listener);
     }
