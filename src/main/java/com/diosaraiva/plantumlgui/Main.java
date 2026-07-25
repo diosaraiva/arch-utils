@@ -7,9 +7,7 @@ import java.nio.file.Path;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
-import com.diosaraiva.plantumlgui.service.PlantUmlConsole;
 import com.diosaraiva.plantumlgui.ui.main.MainFrame;
-import com.diosaraiva.plantumlgui.ui.plantuml.PlantUmlOutputConsolePanel;
 import com.diosaraiva.plantumlgui.util.I18n;
 
 public class Main {
@@ -22,17 +20,11 @@ public class Main {
 
         applyMetalTheme();
 
-        PlantUmlConsole.global().install();
-
         I18n.setLocale(AppSettings.getLanguage());
 
         cleanTempDir();
         Runtime.getRuntime().addShutdownHook(new Thread(Main::cleanTempDir));
-        SwingUtilities.invokeLater(() -> {
-            // Start the Java console capturing JVM output in the background at launch.
-            PlantUmlOutputConsolePanel.startBackground();
-            new MainFrame().setVisible(true);
-        });
+        SwingUtilities.invokeLater(() -> new MainFrame().setVisible(true));
     }
 
     private static void applyMetalTheme() {

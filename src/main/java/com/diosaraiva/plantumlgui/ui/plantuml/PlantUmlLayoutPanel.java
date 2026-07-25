@@ -8,11 +8,8 @@ import java.awt.event.ComponentEvent;
 import javax.swing.BorderFactory;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
-import javax.swing.border.TitledBorder;
 
 public class PlantUmlLayoutPanel extends JPanel {
-
-	private final TitledBorder titledBorder;
 
 	private Component inputHeader;
 	private Component inputCenter;
@@ -24,10 +21,8 @@ public class PlantUmlLayoutPanel extends JPanel {
 
 	private double inputWeight = 0.4;
 
-	public PlantUmlLayoutPanel(String title) {
+	public PlantUmlLayoutPanel() {
 		super(new BorderLayout());
-		titledBorder = BorderFactory.createTitledBorder(title);
-		setBorder(titledBorder);
 	}
 
 	/** Sets the three stacked components of the input (left) section. */
@@ -50,11 +45,6 @@ public class PlantUmlLayoutPanel extends JPanel {
 	public void setInputWeight(double weight) {
 		this.inputWeight = Math.max(0.1, Math.min(0.9, weight));
 		rebuild();
-	}
-
-	public void setTitle(String title) {
-		titledBorder.setTitle(title);
-		repaint();
 	}
 
 	private boolean hasInput() {

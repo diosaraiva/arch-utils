@@ -27,7 +27,19 @@ public final class ArchimateExchangeModel {
     private static final String ARCHIMATE_NS = "http://www.archimatetool.com/archimate";
     private static final String XSI_NS = "http://www.w3.org/2001/XMLSchema-instance";
 
-    private record FolderDef(String type, String displayName) { }
+    private static final class FolderDef {
+        private final String type;
+        private final String displayName;
+
+        FolderDef(String type, String displayName) {
+            this.type = type;
+            this.displayName = displayName;
+        }
+
+        String type() { return type; }
+
+        String displayName() { return displayName; }
+    }
 
     private static final Map<String, FolderDef> LAYER_FOLDERS = new LinkedHashMap<>();
     static {

@@ -88,7 +88,19 @@ public final class ArchimatePlantUmlConverter {
 
     private ArchimatePlantUmlConverter() { }
 
-    public record Result(ArchimateExchangeModel model, List<String> warnings) { }
+    public static final class Result {
+        private final ArchimateExchangeModel model;
+        private final List<String> warnings;
+
+        public Result(ArchimateExchangeModel model, List<String> warnings) {
+            this.model = model;
+            this.warnings = warnings;
+        }
+
+        public ArchimateExchangeModel model() { return model; }
+
+        public List<String> warnings() { return warnings; }
+    }
 
     public static Result convert(String plantUmlSource, String modelName) {
         ArchimateExchangeModel model = new ArchimateExchangeModel(modelName);

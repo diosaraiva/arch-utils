@@ -31,7 +31,20 @@ public class PlantUmlPanel extends JPanel {
     private final Timer previewTimer;
     private PlantUmlLayoutPanel card;
 
-    private record ExportResult(File output, File preview) { }
+    /** Immutable pair holding an export output file and its optional preview render. */
+    private static final class ExportResult {
+        private final File output;
+        private final File preview;
+
+        ExportResult(File output, File preview) {
+            this.output = output;
+            this.preview = preview;
+        }
+
+        File output() { return output; }
+
+        File preview() { return preview; }
+    }
 
     public PlantUmlPanel() {
         var defaultTarget = resolveDefaultTarget("png");
@@ -54,8 +67,8 @@ public class PlantUmlPanel extends JPanel {
         tabs.addTab(I18n.get("tab.preview"), previewPanel);
         tabs.addTab(I18n.get("tab.console"), console);
 
-        card = new PlantUmlLayoutPanel(I18n.get("card.plantuml.title"));
-        card.setInput(inputPanel.getSamplesComponent(),
+        card = new PlantUmlLayoutPanel();
+        card.setInput(null,
                 inputPanel.getEditorComponent(),
                 inputPanel.getControlsComponent());
         card.setOutput(null, tabs, null);
@@ -77,8 +90,8 @@ public class PlantUmlPanel extends JPanel {
 
         SwingUtilities.invokeLater(() -> {
             onLivePreview();
-            // Start the PlantUML console capturing output in the background at launch.
-            runBackgroundConsoleCheck();
+            // Populate the Console tab with a first compilation at launch.
+            onConsoleRefresh();
         });
     }
 
@@ -141,11 +154,6 @@ public class PlantUmlPanel extends JPanel {
                     console.appendBlock(I18n.get("console.compile.error"), String.valueOf(ex.getMessage()));
                     console.setRefreshEnabled(true);
                 });
-    }
-
-    /** Runs a background PlantUML compilation so its output is captured in the console at launch. */
-    public void runBackgroundConsoleCheck() {
-        onConsoleRefresh();
     }
 
     private void onFormatChanged() {
@@ -249,7 +257,6 @@ public class PlantUmlPanel extends JPanel {
     }
 
     public void applyLanguage() {
-        card.setTitle(I18n.get("card.plantuml.title"));
         tabs.setTitleAt(0, I18n.get("tab.preview"));
         tabs.setTitleAt(1, I18n.get("tab.console"));
         inputPanel.applyLanguage();

@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import javax.swing.ButtonGroup;
 import javax.swing.JFileChooser;
@@ -27,7 +28,6 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 import com.diosaraiva.plantumlgui.AppSettings;
 import com.diosaraiva.plantumlgui.ui.other.AboutDialog;
-import com.diosaraiva.plantumlgui.ui.plantuml.PlantUmlOutputConsolePanel;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 
@@ -45,7 +45,19 @@ public final class MenuBarFactory {
         LANGUAGES.put("Español (ES)", I18n.ES_ES);
     }
 
-    private record Resolution(int width, int height) {
+    private static final class Resolution {
+        private final int width;
+        private final int height;
+
+        Resolution(int width, int height) {
+            this.width = width;
+            this.height = height;
+        }
+
+        int width() { return width; }
+
+        int height() { return height; }
+
         String label() { return width + " x " + height; }
     }
 
@@ -127,9 +139,6 @@ public final class MenuBarFactory {
         menu.add(createFontMenu(frame));
         menu.add(createWindowMenu(frame));
         menu.add(createLanguageMenu(frame));
-        menu.addSeparator();
-        menu.add(menuItem(I18n.get("menu.settings.console"), 0, null,
-                e -> PlantUmlOutputConsolePanel.open()));
         return menu;
     }
 
@@ -151,7 +160,7 @@ public final class MenuBarFactory {
 
     private static JMenu createWindowMenu(MainFrame frame) {
         var windowMenu = menu(I18n.get("menu.settings.window"), KeyEvent.VK_W);
-        var labels = RESOLUTIONS.stream().map(Resolution::label).toList();
+        var labels = RESOLUTIONS.stream().map(Resolution::label).collect(Collectors.toList());
         var current = frame.getSelectedWidth() + " x " + frame.getSelectedHeight();
         addRadioGroup(windowMenu, labels, labels.contains(current) ? current : null,
                 label -> RESOLUTIONS.stream()
@@ -191,7 +200,7 @@ public final class MenuBarFactory {
                 GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()));
         var choices = FONT_CHOICES.stream()
                 .filter(f -> installed.contains(f) || isLogicalFont(f))
-                .toList();
+                .collect(Collectors.toList());
         var current = UIManager.getFont("Label.font").getFamily();
         addRadioGroup(fontMenu, choices, choices.contains(current) ? current : null,
                 family -> {
@@ -227,10 +236,16 @@ public final class MenuBarFactory {
     }
 
     private static boolean isLogicalFont(String family) {
-        return switch (family) {
-            case "Dialog", "DialogInput", "SansSerif", "Serif", "Monospaced" -> true;
-            default -> false;
-        };
+        switch (family) {
+            case "Dialog":
+            case "DialogInput":
+            case "SansSerif":
+            case "Serif":
+            case "Monospaced":
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static void applyLookAndFeel(String className, MainFrame frame) {

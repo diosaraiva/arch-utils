@@ -22,7 +22,23 @@ public final class PlantUmlRenderer {
 
     private PlantUmlRenderer() { }
 
-    public record CompileResult(File previewImage, int exitCode, String output) {
+    public static final class CompileResult {
+        private final File previewImage;
+        private final int exitCode;
+        private final String output;
+
+        public CompileResult(File previewImage, int exitCode, String output) {
+            this.previewImage = previewImage;
+            this.exitCode = exitCode;
+            this.output = output;
+        }
+
+        public File previewImage() { return previewImage; }
+
+        public int exitCode() { return exitCode; }
+
+        public String output() { return output; }
+
         public boolean isSuccess() { return exitCode == 0; }
     }
 

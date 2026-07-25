@@ -100,7 +100,9 @@ public final class SwingUtils {
 
     public static void applyFontFamily(String family) {
         for (var key : new ArrayList<>(UIManager.getDefaults().keySet())) {
-            if (UIManager.get(key) instanceof Font font) {
+            Object value = UIManager.get(key);
+            if (value instanceof Font) {
+                Font font = (Font) value;
                 UIManager.put(key, new FontUIResource(family, font.getStyle(), font.getSize()));
             }
         }
@@ -113,7 +115,13 @@ public final class SwingUtils {
         }
     }
 
-    private record ImageTransferable(Image image) implements Transferable {
+    private static final class ImageTransferable implements Transferable {
+        private final Image image;
+
+        ImageTransferable(Image image) {
+            this.image = image;
+        }
+
         @Override public DataFlavor[] getTransferDataFlavors() {
             return new DataFlavor[]{DataFlavor.imageFlavor};
         }

@@ -12,68 +12,69 @@ import java.util.List;
 import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
+import javax.swing.ListSelectionModel;
 import javax.swing.event.DocumentListener;
 import javax.swing.undo.UndoManager;
 
 import com.diosaraiva.plantumlgui.service.SampleLoader;
+import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 import com.diosaraiva.plantumlgui.util.TextLineNumber;
 
 public class PlantUmlInputPanel extends JPanel {
 
-    private final JComboBox<DiagramSample> sampleCombo;
+    private final JList<DiagramSample> sampleList = new JList<>(DiagramSample.values());
     private final JTextArea codeTextArea;
     private final JLabel countLabel = new JLabel();
-    private final JLabel samplesLabel = new JLabel(com.diosaraiva.plantumlgui.util.I18n.get("input.samples"));
-    private final JCheckBox autoPreviewCheck =
-            new JCheckBox(com.diosaraiva.plantumlgui.util.I18n.get("input.autoPreview"), true);
-    private final JButton previewButton =
-            new JButton(com.diosaraiva.plantumlgui.util.I18n.get("input.preview"));
+    private final JCheckBox autoPreviewCheck = new JCheckBox(I18n.get("input.autoPreview"), true);
+    private final JButton previewButton = new JButton(I18n.get("input.preview"));
     private final UndoManager undoManager = new UndoManager();
     private final List<Runnable> undoStateListeners = new ArrayList<>();
 
-    private JPanel samplesPanel;
+    private final JTabbedPane inputTabs = new JTabbedPane();
     private JScrollPane editorScroll;
     private JPanel controlsBar;
 
     public PlantUmlInputPanel() {
-        sampleCombo = new JComboBox<>(DiagramSample.values());
-        sampleCombo.setSelectedItem(DiagramSample.SEQUENCE);
         codeTextArea = new JTextArea(10, 20);
         codeTextArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
         initComponents();
     }
 
     private void initComponents() {
-        samplesPanel = new JPanel(new BorderLayout(6, 0));
-        samplesPanel.add(samplesLabel, BorderLayout.WEST);
-        sampleCombo.addActionListener(e -> loadSample());
-        samplesPanel.add(sampleCombo, BorderLayout.CENTER);
-
         codeTextArea.setLineWrap(true);
         codeTextArea.setWrapStyleWord(false);
         editorScroll = new JScrollPane(codeTextArea);
         editorScroll.setRowHeaderView(new TextLineNumber(codeTextArea));
 
+        sampleList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        sampleList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) { loadSample(); }
+        });
+
+        inputTabs.addTab(I18n.get("input.tab.code"), editorScroll);
+        inputTabs.addTab(I18n.get("input.tab.samples"), new JScrollPane(sampleList));
+
         controlsBar = createBottomBar();
 
         initUndo();
         initCountLabel();
-        loadSample();
+
+        // Default selection loads the initial sample into the "Code" tab.
+        sampleList.setSelectedValue(DiagramSample.SEQUENCE, true);
+        inputTabs.setSelectedIndex(0);
     }
 
-    /** Header of the input section: the "Samples" label and selector. */
-    public JComponent getSamplesComponent() { return samplesPanel; }
-
-    /** Center of the input section: the code editor. */
-    public JComponent getEditorComponent() { return editorScroll; }
+    /** Center of the input section: the Code / Samples tabbed pane. */
+    public JComponent getEditorComponent() { return inputTabs; }
 
     /** Controls placed below the input text box (auto-preview, counts, preview). */
     public JComponent getControlsComponent() { return controlsBar; }
@@ -108,13 +109,14 @@ public class PlantUmlInputPanel extends JPanel {
     private void updateCounts() {
         int chars = codeTextArea.getDocument().getLength();
         int lines = codeTextArea.getLineCount();
-        countLabel.setText(com.diosaraiva.plantumlgui.util.I18n.get("input.counts", chars, lines));
+        countLabel.setText(I18n.get("input.counts", chars, lines));
     }
 
     public void applyLanguage() {
-        samplesLabel.setText(com.diosaraiva.plantumlgui.util.I18n.get("input.samples"));
-        autoPreviewCheck.setText(com.diosaraiva.plantumlgui.util.I18n.get("input.autoPreview"));
-        previewButton.setText(com.diosaraiva.plantumlgui.util.I18n.get("input.preview"));
+        inputTabs.setTitleAt(0, I18n.get("input.tab.code"));
+        inputTabs.setTitleAt(1, I18n.get("input.tab.samples"));
+        autoPreviewCheck.setText(I18n.get("input.autoPreview"));
+        previewButton.setText(I18n.get("input.preview"));
         updateCounts();
         repaint();
     }
@@ -140,15 +142,16 @@ public class PlantUmlInputPanel extends JPanel {
     }
 
     private void loadSample() {
-        DiagramSample sample = (DiagramSample) sampleCombo.getSelectedItem();
-        if (sample == null) return;
+        DiagramSample sample = sampleList.getSelectedValue();
+        if (sample == null) { return; }
         try {
             codeTextArea.setText(SampleLoader.load(sample.getFileName()));
             codeTextArea.setCaretPosition(0);
         } catch (Exception ex) {
             codeTextArea.setText("Error loading sample: " + ex.getMessage());
         }
-
+        // Bring the edited code to the front after picking a sample.
+        inputTabs.setSelectedIndex(0);
         undoManager.discardAllEdits();
         fireUndoStateChanged();
     }
