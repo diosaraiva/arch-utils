@@ -2,7 +2,6 @@ package com.diosaraiva.plantumlgui.service;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -133,16 +132,6 @@ public final class ArchimateExchangeModel {
         } catch (TransformerException ex) {
             throw new IOException("Failed to serialise ArchiMate model", ex);
         }
-    }
-
-    public String toXmlString() {
-        StringWriter sw = new StringWriter();
-        try {
-            writeTo(sw);
-        } catch (IOException ex) {
-            throw new IllegalStateException(ex);
-        }
-        return sw.toString();
     }
 
     private Element createFolder(FolderDef def) {

@@ -1,4 +1,4 @@
-package com.diosaraiva.plantumlgui.ui.main;
+package com.diosaraiva.plantumlgui.ui;
 
 import static com.diosaraiva.plantumlgui.util.SwingUtils.menuItem;
 import static com.diosaraiva.plantumlgui.util.SwingUtils.menuShortcut;
@@ -27,7 +27,6 @@ import javax.swing.UIManager;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import com.diosaraiva.plantumlgui.AppSettings;
-import com.diosaraiva.plantumlgui.ui.other.AboutDialog;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 

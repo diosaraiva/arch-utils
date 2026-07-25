@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.diosaraiva.plantumlgui.AppSettings;
 import com.diosaraiva.plantumlgui.util.JarUtils;
 
 public final class PlantUmlRenderer {
@@ -42,20 +43,6 @@ public final class PlantUmlRenderer {
         public boolean isSuccess() { return exitCode == 0; }
     }
 
-    public static File renderPreview(String code, String tempDir)
-            throws IOException, InterruptedException {
-        var dir = new File(tempDir);
-        if (!dir.exists()) { Files.createDirectories(dir.toPath()); }
-        Path pumlPath = Paths.get(tempDir, "_preview.puml");
-        Files.writeString(pumlPath, code);
-        JarUtils.runJar(PLANTUML_JAR, dir,
-                includePathOptions(),
-                "-tpng", pumlPath.toAbsolutePath().toString(),
-                "-o", tempDir);
-        var preview = new File(tempDir, "_preview.png");
-        return preview.isFile() ? preview : null;
-    }
-
     public static CompileResult compilePreview(String code, String tempDir)
             throws IOException, InterruptedException {
         var dir = new File(tempDir);
@@ -63,7 +50,7 @@ public final class PlantUmlRenderer {
         Path pumlPath = Paths.get(tempDir, "_preview.puml");
         Files.writeString(pumlPath, code);
 
-        JarUtils.JarRunResult run = JarUtils.runJarCapture(PLANTUML_JAR, dir,
+        JarUtils.JarRunResult run = JarUtils.runJarCapture(resolveJar(), dir,
                 includePathOptions(),
                 "-tpng", "-stdrpt:1", pumlPath.toAbsolutePath().toString(),
                 "-o", tempDir);
@@ -73,19 +60,36 @@ public final class PlantUmlRenderer {
                 run.exitCode(), run.combinedOutput());
     }
 
-    static void runExport(String code, File target, PlantUmlFormat format)
+    public static void export(String code, File targetFile, PlantUmlFormat format)
             throws IOException, InterruptedException {
-        ensureParentDir(target);
-        String baseName = stripExtension(target.getName());
-        Path pumlPath = Paths.get(target.getParent(), baseName + ".puml");
+        ensureParentDir(targetFile);
+        String baseName = stripExtension(targetFile.getName());
+        Path pumlPath = Paths.get(targetFile.getParent(), baseName + ".puml");
         Files.writeString(pumlPath, code);
 
         if (!format.needsJar()) { return; }
 
-        JarUtils.runJar(PLANTUML_JAR, target.getParentFile(),
+        JarUtils.runJar(resolveJar(), targetFile.getParentFile(),
                 includePathOptions(),
                 format.cliFlag(), pumlPath.toAbsolutePath().toString(),
-                "-o", target.getParent());
+                "-o", targetFile.getParent());
+    }
+
+    public static File resolveJar() throws IOException {
+        String custom = AppSettings.getJarPath();
+        if (!custom.isEmpty()) {
+            File file = new File(custom);
+            if (file.isFile()) { return file; }
+        }
+        return JarUtils.extractJar(PLANTUML_JAR);
+    }
+
+    public static String bundledJarPath() {
+        try {
+            return JarUtils.extractJar(PLANTUML_JAR).getAbsolutePath();
+        } catch (IOException ex) {
+            return "";
+        }
     }
 
     private static List<String> includePathOptions() {

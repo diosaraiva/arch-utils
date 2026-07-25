@@ -1,4 +1,4 @@
-package com.diosaraiva.plantumlgui.ui.main;
+package com.diosaraiva.plantumlgui.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -10,7 +10,6 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 
-import com.diosaraiva.plantumlgui.ui.plantuml.PlantUmlPanel;
 import com.diosaraiva.plantumlgui.util.I18n;
 
 public class MainFrame extends JFrame {
@@ -70,16 +69,14 @@ public class MainFrame extends JFrame {
         selectedHeight = height;
         setSize(w, h);
         setLocationRelativeTo(null);
-        // Rebuild the menu so the Window menu reflects the new selection.
+
         setJMenuBar(MenuBarFactory.create(this));
         revalidate();
         repaint();
     }
 
-    /** Width of the resolution currently chosen from the Window menu. */
     public int getSelectedWidth() { return selectedWidth; }
 
-    /** Height of the resolution currently chosen from the Window menu. */
     public int getSelectedHeight() { return selectedHeight; }
 
     public PlantUmlPanel getPlantUmlPanel() { return plantUmlPanel; }

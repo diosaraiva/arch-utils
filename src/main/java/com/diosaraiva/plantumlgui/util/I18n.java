@@ -12,7 +12,6 @@ import java.util.Properties;
 
 public final class I18n {
 
-    /** Location of the messages files relative to a resources root. */
     private static final String BUNDLE_DIR = "i18n";
     private static final String BUNDLE_BASE = "messages";
 
@@ -41,11 +40,6 @@ public final class I18n {
         return java.text.MessageFormat.format(get(key), args);
     }
 
-    /**
-     * Loads the messages for the given locale directly from disk (no classpath).
-     * Falls back from the most specific candidate to the least specific:
-     * messages_en_US -> messages_en -> messages.
-     */
     private static Properties load(Locale locale) {
         var props = new Properties();
         for (var name : candidateFileNames(locale)) {
@@ -54,7 +48,7 @@ public final class I18n {
             }
         }
         System.err.println("I18n: no messages file found on disk for locale " + locale);
-        return props; // empty -> get() returns !key!
+        return props;
     }
 
     private static String[] candidateFileNames(Locale locale) {
@@ -73,7 +67,6 @@ public final class I18n {
         };
     }
 
-    /** Reads a UTF-8 .properties file from the first matching on-disk location. */
     private static boolean loadInto(Properties props, String relativePath) {
         var baseDir = Path.of(System.getProperty("user.dir"));
         Path[] candidates = {

@@ -1,4 +1,4 @@
-package com.diosaraiva.plantumlgui.ui.plantuml;
+package com.diosaraiva.plantumlgui.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
@@ -68,15 +68,12 @@ public class PlantUmlInputPanel extends JPanel {
         initUndo();
         initCountLabel();
 
-        // Default selection loads the initial sample into the "Code" tab.
         sampleList.setSelectedValue(DiagramSample.SEQUENCE, true);
         inputTabs.setSelectedIndex(0);
     }
 
-    /** Center of the input section: the Code / Samples tabbed pane. */
     public JComponent getEditorComponent() { return inputTabs; }
 
-    /** Controls placed below the input text box (auto-preview, counts, preview). */
     public JComponent getControlsComponent() { return controlsBar; }
 
     private JPanel createBottomBar() {
@@ -150,7 +147,7 @@ public class PlantUmlInputPanel extends JPanel {
         } catch (Exception ex) {
             codeTextArea.setText("Error loading sample: " + ex.getMessage());
         }
-        // Bring the edited code to the front after picking a sample.
+
         inputTabs.setSelectedIndex(0);
         undoManager.discardAllEdits();
         fireUndoStateChanged();

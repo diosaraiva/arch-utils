@@ -45,10 +45,9 @@ public final class JarUtils {
                 + fsFile.getAbsolutePath() + ": " + resourcePath);
     }
 
-    public static int runJar(String resourcePath, File workingDir,
+    public static int runJar(File jar, File workingDir,
                              List<String> jvmOptions, String... args)
             throws IOException, InterruptedException {
-        File jar = extractJar(resourcePath);
         List<String> cmd = new ArrayList<>();
         cmd.add("java");
         if (jvmOptions != null) { cmd.addAll(jvmOptions); }
@@ -111,10 +110,9 @@ public final class JarUtils {
         }
     }
 
-    public static JarRunResult runJarCapture(String resourcePath, File workingDir,
+    public static JarRunResult runJarCapture(File jar, File workingDir,
                                              List<String> jvmOptions, String... args)
             throws IOException, InterruptedException {
-        File jar = extractJar(resourcePath);
         List<String> cmd = new ArrayList<>();
         cmd.add("java");
         if (jvmOptions != null) { cmd.addAll(jvmOptions); }
