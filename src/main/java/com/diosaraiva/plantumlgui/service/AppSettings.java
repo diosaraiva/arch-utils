@@ -1,4 +1,4 @@
-package com.diosaraiva.plantumlgui;
+package com.diosaraiva.plantumlgui.service;
 
 import java.util.Locale;
 import java.util.prefs.Preferences;

@@ -19,7 +19,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-import com.diosaraiva.plantumlgui.AppSettings;
+import com.diosaraiva.plantumlgui.service.AppSettings;
 import com.diosaraiva.plantumlgui.service.PlantUmlRenderer;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;

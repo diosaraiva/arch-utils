@@ -9,7 +9,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.diosaraiva.plantumlgui.AppSettings;
 import com.diosaraiva.plantumlgui.util.JarUtils;
 
 public final class PlantUmlRenderer {

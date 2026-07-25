@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
+import com.diosaraiva.plantumlgui.service.AppSettings;
 import com.diosaraiva.plantumlgui.ui.MainFrame;
 import com.diosaraiva.plantumlgui.util.I18n;
 

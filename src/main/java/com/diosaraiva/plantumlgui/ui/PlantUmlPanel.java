@@ -13,10 +13,10 @@ import javax.swing.JSplitPane;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
-import com.diosaraiva.plantumlgui.Background;
 import com.diosaraiva.plantumlgui.service.ArchimatePlantUmlConverter;
 import com.diosaraiva.plantumlgui.service.PlantUmlFormat;
 import com.diosaraiva.plantumlgui.service.PlantUmlRenderer;
+import com.diosaraiva.plantumlgui.util.Background;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 

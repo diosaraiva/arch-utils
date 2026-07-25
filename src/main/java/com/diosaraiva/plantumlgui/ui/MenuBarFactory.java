@@ -26,7 +26,7 @@ import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-import com.diosaraiva.plantumlgui.AppSettings;
+import com.diosaraiva.plantumlgui.service.AppSettings;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 
