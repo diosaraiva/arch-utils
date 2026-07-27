@@ -5,12 +5,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 public final class I18n {
+
+    private static final Logger LOG = Logger.getLogger(I18n.class.getName());
 
     private static final String BUNDLE_DIR = "i18n";
     private static final String BUNDLE_BASE = "messages";
@@ -47,7 +49,7 @@ public final class I18n {
                 return props;
             }
         }
-        System.err.println("I18n: no messages file found on disk for locale " + locale);
+        LOG.warning(() -> "I18n: no messages file found on classpath or disk for locale " + locale);
         return props;
     }
 
@@ -68,24 +70,18 @@ public final class I18n {
     }
 
     private static boolean loadInto(Properties props, String relativePath) {
-        var baseDir = Path.of(System.getProperty("user.dir"));
-        Path[] candidates = {
-                baseDir.resolve("src/main/resources").resolve(relativePath),
-                baseDir.resolve("resources").resolve(relativePath),
-                baseDir.resolve("bin").resolve(relativePath),
-                baseDir.resolve(relativePath),
-        };
-        for (var candidate : candidates) {
-            if (Files.isRegularFile(candidate)) {
-                try (InputStream in = Files.newInputStream(candidate);
-                        Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
-                    props.load(reader);
-                    return true;
-                } catch (IOException ex) {
-                    System.err.println("I18n: failed to read " + candidate + " (" + ex.getMessage() + ")");
-                }
-            }
+        Optional<InputStream> stream = ResourceLocator.tryOpenStream(relativePath);
+        if (stream.isEmpty()) {
+            return false;
         }
-        return false;
+        try (InputStream in = stream.get();
+                Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
+            props.load(reader);
+            return true;
+        } catch (IOException ex) {
+            LOG.warning(() -> "I18n: failed to read " + relativePath
+                    + " (" + ex.getMessage() + ")");
+            return false;
+        }
     }
 }

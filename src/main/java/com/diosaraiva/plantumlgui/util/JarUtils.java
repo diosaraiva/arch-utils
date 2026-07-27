@@ -3,28 +3,28 @@ package com.diosaraiva.plantumlgui.util;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 public final class JarUtils {
 
     private JarUtils() { }
 
-    private static final String RESOURCES_DIR = "src" + File.separator
-            + "main" + File.separator + "resources";
-
     public static File extractJar(String resourcePath) throws IOException {
 
-        URL url = JarUtils.class.getClassLoader().getResource(resourcePath);
-        if (url != null && "file".equals(url.getProtocol())) {
-            return new File(url.getPath());
+        // Prefer a real file on disk: a 'file:' classpath URL (Eclipse / exploded
+        // classes) or the upward filesystem walk (running from the source tree).
+        Optional<Path> onDisk = ResourceLocator.find(resourcePath);
+        if (onDisk.isPresent()) {
+            return onDisk.get().toFile();
         }
 
+        // Otherwise the resource is packaged inside a JAR: copy it to a temp file.
         try (InputStream in = JarUtils.class.getClassLoader()
                 .getResourceAsStream(resourcePath)) {
             if (in != null) {
@@ -36,13 +36,8 @@ public final class JarUtils {
             }
         }
 
-        File fsFile = new File(RESOURCES_DIR, resourcePath);
-        if (fsFile.isFile()) {
-            return fsFile;
-        }
-
-        throw new IOException("Resource not found on classpath or at "
-                + fsFile.getAbsolutePath() + ": " + resourcePath);
+        throw new IOException("Resource not found on classpath or filesystem: "
+                + resourcePath);
     }
 
     public static int runJar(File jar, File workingDir,

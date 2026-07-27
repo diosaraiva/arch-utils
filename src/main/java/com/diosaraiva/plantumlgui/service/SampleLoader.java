@@ -1,43 +1,28 @@
 package com.diosaraiva.plantumlgui.service;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+
+import com.diosaraiva.plantumlgui.util.ResourceLocator;
 
 public final class SampleLoader {
 
-    private static final String SAMPLES_DIR = "src" + File.separator
-            + "main" + File.separator + "resources" + File.separator
-            + "plantuml" + File.separator + "samples";
+    private static final String SAMPLES_RESOURCE = "plantuml/samples";
 
     private SampleLoader() { }
 
     public static String load(String fileName) throws IOException {
-        InputStream in = SampleLoader.class.getClassLoader()
-                .getResourceAsStream("plantuml/samples/" + fileName);
-        if (in != null) {
+        try (InputStream in = ResourceLocator.openStream(SAMPLES_RESOURCE + "/" + fileName)) {
             return readStream(in);
         }
-        File file = new File(SAMPLES_DIR, fileName);
-        if (file.isFile()) {
-            return readFile(file);
-        }
-        throw new IOException("Sample not found: " + fileName);
     }
 
     private static String readStream(InputStream in) throws IOException {
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(in, "UTF-8"))) {
-            return readAll(reader);
-        }
-    }
-
-    private static String readFile(File file) throws IOException {
-        try (BufferedReader reader = new BufferedReader(
-                new FileReader(file))) {
+                new InputStreamReader(in, StandardCharsets.UTF_8))) {
             return readAll(reader);
         }
     }

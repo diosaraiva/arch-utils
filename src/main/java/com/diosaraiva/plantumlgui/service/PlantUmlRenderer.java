@@ -2,7 +2,6 @@ package com.diosaraiva.plantumlgui.service;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -10,15 +9,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.diosaraiva.plantumlgui.util.JarUtils;
+import com.diosaraiva.plantumlgui.util.ResourceLocator;
 
 public final class PlantUmlRenderer {
 
     private static final String PLANTUML_JAR = "plantuml/plantuml-1.2026.6.jar";
 
     private static final String SAMPLES_RESOURCE = "plantuml/samples";
-    private static final String SAMPLES_FS = "src" + File.separator + "main"
-            + File.separator + "resources" + File.separator + "plantuml"
-            + File.separator + "samples";
 
     private PlantUmlRenderer() { }
 
@@ -103,13 +100,10 @@ public final class PlantUmlRenderer {
     }
 
     private static File resolveSamplesDir() {
-        URL url = PlantUmlRenderer.class.getClassLoader().getResource(SAMPLES_RESOURCE);
-        if (url != null && "file".equals(url.getProtocol())) {
-            var dir = new File(url.getPath());
-            if (dir.isDirectory()) { return dir; }
-        }
-        var fsDir = new File(SAMPLES_FS);
-        return fsDir.isDirectory() ? fsDir : null;
+        return ResourceLocator.find(SAMPLES_RESOURCE)
+                .filter(Files::isDirectory)
+                .map(Path::toFile)
+                .orElse(null);
     }
 
     private static void ensureParentDir(File target) throws IOException {
