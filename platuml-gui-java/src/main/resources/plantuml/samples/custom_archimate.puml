@@ -1,0 +1,63 @@
+@startuml
+
+'###LIBS###
+!pragma layout smetana
+!include <archimate/Archimate>
+
+!define actor(alias,stereotype,actorName) Business_Actor(alias, <center><<stereotype>>\nactorName)
+
+!define assetNew(alias,stereotype,assetName)   Application_Component(alias, <center><<stereotype>>\nassetName <font color=green>**[N]**</font>)
+!define assetReused(alias,stereotype,assetName) Application_Component(alias, <center><<stereotype>>\nassetName <font color=blue>**[R]**</font>)
+!define assetDecom(alias,stereotype,assetName)  Application_Component(alias, <center><<stereotype>>\nassetName <font color=red>**[D]**</font>)
+
+!define exch(stereotype,exchLabel) <center><<stereotype>>\nexchLabel
+!define legendEntry(col,sign,desc) |<font color=col>**  sign**</font>|desc|
+
+'###SETTINGS###
+title Component Diagram Template
+skinparam backgroundColor white
+skinparam legendBorderColor white
+top to bottom direction
+
+'###ACTORS###
+actor(x1,"External","Customers")
+actor(x2,"Internal","Management")
+
+'###COMPONENTS###
+Group(g1, "Distribution") {
+    Other_Grouping(g11, "On Premises") {
+        assetNew(y11,"Application","SPA Application")
+        assetReused(y12,"Application","Mobile Application")
+        assetDecom(y13,"Application","Windows Application")
+    }
+}
+Group(g2, "Backend") {
+    assetReused(y21,"Application","API Backend")
+}
+Group(g3, "Data") {
+    assetReused(z11,"Database","PostgreSQL")
+}
+
+'###EXCHANGES###
+x1 -[#red]->   y13: exch("GUI","subscription")
+x1 -[#black]-> y12: exch("GUI","reporting")
+x1 -[#blue]->  y11: exch("GUI","subscription")
+x2 -[#black]-> y11: exch("GUI","subscription")
+y11 -[#black]-> y21: exch("API","subscription")
+y12 -[#black]-> y21: exch("API","subscription")
+y13 -[#black]-> y21: exch("API","subscription")
+y11 -[#black]-> y21: exch("API","reporting")
+y21 -[#black]-> z11: exch("SQL","query")
+
+'###LEGEND###
+legend left
+    | **Sign** | **Description**          |
+    legendEntry(black,--->,"Existing Exchange")
+    legendEntry(blue, --->,"New Exchange")
+    legendEntry(red,  --->,"Removed Exchange")
+    legendEntry(green,[N], "New Asset")
+    legendEntry(black,[R], "Reused Asset")
+    legendEntry(red,  [D], "Decommissioned Asset")
+endlegend
+
+@enduml
