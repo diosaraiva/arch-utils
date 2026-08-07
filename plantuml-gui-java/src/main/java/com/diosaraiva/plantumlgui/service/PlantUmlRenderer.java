@@ -2,119 +2,112 @@ package com.diosaraiva.plantumlgui.service;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
+import com.diosaraiva.plantumlgui.util.FileNames;
 import com.diosaraiva.plantumlgui.util.JarUtils;
 import com.diosaraiva.plantumlgui.util.ResourceLocator;
 
+// Runs the PlantUML JAR in a child JVM; owns the scratch directory used for previews.
 public final class PlantUmlRenderer {
 
-    private static final String PLANTUML_JAR = "plantuml/plantuml-1.2026.6.jar";
+    private static final Logger LOG = Logger.getLogger(PlantUmlRenderer.class.getName());
 
-    private static final String SAMPLES_RESOURCE = "plantuml/samples";
+    private static final Path TEMP_DIR = Path.of(System.getProperty("java.io.tmpdir"), "plantuml-gui");
+    private static final String PREVIEW_NAME = "_preview";
 
     private PlantUmlRenderer() { }
 
-    public static final class CompileResult {
-        private final File previewImage;
-        private final int exitCode;
-        private final String output;
-
-        public CompileResult(File previewImage, int exitCode, String output) {
-            this.previewImage = previewImage;
-            this.exitCode = exitCode;
-            this.output = output;
-        }
-
-        public File previewImage() { return previewImage; }
-
-        public int exitCode() { return exitCode; }
-
-        public String output() { return output; }
+    public record CompileResult(File previewImage, int exitCode, String output) {
 
         public boolean isSuccess() { return exitCode == 0; }
     }
 
-    public static CompileResult compilePreview(String code, String tempDir)
-            throws IOException, InterruptedException {
-        var dir = new File(tempDir);
-        if (!dir.exists()) { Files.createDirectories(dir.toPath()); }
-        Path pumlPath = Paths.get(tempDir, "_preview.puml");
-        Files.writeString(pumlPath, code);
+    // Renders the source to PNG in the scratch directory; previewImage() is null when nothing was produced.
+    public static CompileResult compilePreview(String code) throws IOException, InterruptedException {
+        Path dir = tempDir();
+        Path puml = dir.resolve(PREVIEW_NAME + ".puml");
+        Files.writeString(puml, code);
 
-        JarUtils.JarRunResult run = JarUtils.runJarCapture(resolveJar(), dir,
-                includePathOptions(),
-                "-tpng", "-stdrpt:1", pumlPath.toAbsolutePath().toString(),
-                "-o", tempDir);
+        JarUtils.JarRunResult run = JarUtils.runJar(resolveJar(), dir.toFile(), jvmOptions(),
+                PlantUmlFormat.PNG.cliFlag(), "-stdrpt:1", puml.toString(), "-o", dir.toString());
 
-        var preview = new File(tempDir, "_preview.png");
-        return new CompileResult(preview.isFile() ? preview : null,
-                run.exitCode(), run.combinedOutput());
+        File preview = dir.resolve(PREVIEW_NAME + ".png").toFile();
+        return new CompileResult(preview.isFile() ? preview : null, run.exitCode(), run.combinedOutput());
     }
 
-    public static void export(String code, File targetFile, PlantUmlFormat format)
+    // Writes the source next to the target and, for JAR-backed formats, renders the target itself.
+    public static void export(String code, File target, PlantUmlFormat format)
             throws IOException, InterruptedException {
-        ensureParentDir(targetFile);
-        String baseName = stripExtension(targetFile.getName());
-        Path pumlPath = Paths.get(targetFile.getParent(), baseName + ".puml");
-        Files.writeString(pumlPath, code);
+        File parent = target.getAbsoluteFile().getParentFile();
+        Files.createDirectories(parent.toPath());
+        Path puml = parent.toPath().resolve(FileNames.baseName(target) + ".puml");
+        Files.writeString(puml, code);
 
-        if (!format.needsJar()) { return; }
-
-        JarUtils.runJar(resolveJar(), targetFile.getParentFile(),
-                includePathOptions(),
-                format.cliFlag(), pumlPath.toAbsolutePath().toString(),
-                "-o", targetFile.getParent());
+        if (format.needsJar()) {
+            JarUtils.runJar(resolveJar(), parent, jvmOptions(),
+                    format.cliFlag(), puml.toString(), "-o", parent.toString());
+        }
     }
 
+    // Custom JAR from the config file when it exists, otherwise the bundled one.
     public static File resolveJar() throws IOException {
         String custom = AppSettings.getJarPath();
-        if (!custom.isEmpty()) {
-            File file = new File(custom);
-            if (file.isFile()) { return file; }
+        if (!custom.isEmpty() && new File(custom).isFile()) {
+            return new File(custom);
         }
-        return JarUtils.extractJar(PLANTUML_JAR);
+        return JarUtils.extractJar(AppSettings.get(AppSettings.BUNDLED_JAR));
     }
 
     public static String bundledJarPath() {
         try {
-            return JarUtils.extractJar(PLANTUML_JAR).getAbsolutePath();
+            return JarUtils.extractJar(AppSettings.get(AppSettings.BUNDLED_JAR)).getAbsolutePath();
         } catch (IOException ex) {
+            LOG.warning(() -> "Bundled PlantUML JAR unavailable: " + ex.getMessage());
             return "";
         }
     }
 
-    private static List<String> includePathOptions() {
+    // Deletes previous scratch files; call at start-up and from a shutdown hook.
+    public static void cleanTempDir() {
+        if (!Files.isDirectory(TEMP_DIR)) {
+            return;
+        }
+        try (var files = Files.list(TEMP_DIR)) {
+            files.forEach(PlantUmlRenderer::deleteQuietly);
+        } catch (IOException ex) {
+            LOG.fine(() -> "Could not clean " + TEMP_DIR + ": " + ex.getMessage());
+        }
+    }
+
+    private static Path tempDir() throws IOException {
+        return Files.createDirectories(TEMP_DIR);
+    }
+
+    private static void deleteQuietly(Path path) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException | UncheckedIOException ignored) {
+            // Leftovers are harmless; the next run overwrites them.
+        }
+    }
+
+    // Configured JVM options plus the resolved PlantUML include path.
+    private static List<String> jvmOptions() {
         var opts = new ArrayList<String>();
-        opts.add("-Djava.awt.headless=true");
-        opts.add("-Dapple.awt.UIElement=true");
-        var samplesDir = resolveSamplesDir();
-        if (samplesDir != null) {
-            opts.add("-Dplantuml.include.path=" + samplesDir.getAbsolutePath());
+        String configured = AppSettings.get(AppSettings.JVM_OPTIONS);
+        if (!configured.isEmpty()) {
+            opts.addAll(Arrays.asList(configured.split("\\s+")));
         }
-        return opts;
-    }
-
-    private static File resolveSamplesDir() {
-        return ResourceLocator.find(SAMPLES_RESOURCE)
+        ResourceLocator.find(AppSettings.get(AppSettings.INCLUDE_DIR))
                 .filter(Files::isDirectory)
-                .map(Path::toFile)
-                .orElse(null);
-    }
-
-    private static void ensureParentDir(File target) throws IOException {
-        var parentDir = target.getParentFile();
-        if (parentDir != null && !parentDir.exists()) {
-            Files.createDirectories(parentDir.toPath());
-        }
-    }
-
-    private static String stripExtension(String fileName) {
-        int dot = fileName.lastIndexOf('.');
-        return dot > 0 ? fileName.substring(0, dot) : fileName;
+                .ifPresent(dir -> opts.add("-Dplantuml.include.path=" + dir.toAbsolutePath()));
+        return opts;
     }
 }

@@ -7,138 +7,80 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+// Best-effort translation of PlantUML ArchiMate macros into an ArchimateExchangeModel.
 public final class ArchimatePlantUmlConverter {
 
+    // Layer_Type(alias, "Name", ...)
     private static final Pattern ELEMENT = Pattern.compile(
             "^\\s*([A-Z][A-Za-z]+)_([A-Za-z]+)\\s*\\(\\s*([A-Za-z0-9_]+)\\s*,\\s*\"([^\"]*)\"");
 
+    // Rel_Type(source, target[, "Label"])
     private static final Pattern RELATION = Pattern.compile(
             "^\\s*Rel_([A-Za-z]+)\\s*\\(\\s*([A-Za-z0-9_]+)\\s*,\\s*([A-Za-z0-9_]+)\\s*"
                     + "(?:,\\s*\"([^\"]*)\")?\\s*\\)");
 
-    private static final Map<String, String> ELEMENT_TYPES = new HashMap<>();
+    private static final String OTHER_LAYER = "other";
 
-    private static final Map<String, String> LAYER_OF = new HashMap<>();
+    private record Mapping(String archiType, String layer) { }
 
+    // PlantUML macro -> ArchiMate type and owning layer.
+    private static final Map<String, Mapping> MACROS = new HashMap<>();
     static {
-
-        putBusiness("Actor", "Role", "Collaboration", "Interface", "Process", "Function",
+        // Macros whose ArchiMate type is the layer prefix plus the suffix.
+        prefixed("Business", "business", "Actor", "Role", "Collaboration", "Interface", "Process",
+                "Function", "Interaction", "Event", "Service");
+        prefixed("Application", "application", "Component", "Collaboration", "Interface", "Function",
+                "Interaction", "Process", "Event", "Service");
+        prefixed("Technology", "technology", "Collaboration", "Interface", "Function", "Process",
                 "Interaction", "Event", "Service");
-        map("Business_Object", "BusinessObject", "business");
-        map("Business_Contract", "Contract", "business");
-        map("Business_Representation", "Representation", "business");
-        map("Business_Product", "Product", "business");
 
-        putApplication("Component", "Collaboration", "Interface", "Function", "Interaction",
-                "Process", "Event", "Service");
-        map("Application_DataObject", "DataObject", "application");
-
-        map("Technology_Node", "Node", "technology");
-        map("Technology_Device", "Device", "technology");
-        map("Technology_SystemSoftware", "SystemSoftware", "technology");
-        map("Technology_Collaboration", "TechnologyCollaboration", "technology");
-        map("Technology_Interface", "TechnologyInterface", "technology");
-        map("Technology_Path", "Path", "technology");
-        map("Technology_CommunicationNetwork", "CommunicationNetwork", "technology");
-        map("Technology_Function", "TechnologyFunction", "technology");
-        map("Technology_Process", "TechnologyProcess", "technology");
-        map("Technology_Interaction", "TechnologyInteraction", "technology");
-        map("Technology_Event", "TechnologyEvent", "technology");
-        map("Technology_Service", "TechnologyService", "technology");
-        map("Technology_Artifact", "Artifact", "technology");
-
-        map("Physical_Equipment", "Equipment", "technology");
-        map("Physical_Facility", "Facility", "technology");
-        map("Physical_DistributionNetwork", "DistributionNetwork", "technology");
-        map("Physical_Material", "Material", "technology");
-
-        for (String t : new String[]{"Stakeholder", "Driver", "Assessment", "Goal", "Outcome",
-                "Principle", "Requirement", "Constraint", "Meaning", "Value"}) {
-            map("Motivation_" + t, t, "motivation");
-        }
-
-        map("Strategy_Resource", "Resource", "strategy");
-        map("Strategy_Capability", "Capability", "strategy");
-        map("Strategy_CourseOfAction", "CourseOfAction", "strategy");
-        map("Strategy_ValueStream", "ValueStream", "strategy");
-
-        map("Implementation_WorkPackage", "WorkPackage", "implementation");
-        map("Implementation_Deliverable", "Deliverable", "implementation");
-        map("Implementation_Event", "ImplementationEvent", "implementation");
-        map("Implementation_Plateau", "Plateau", "implementation");
-        map("Implementation_Gap", "Gap", "implementation");
-
-        map("Other_Location", "Location", "other");
-        map("Other_Grouping", "Grouping", "other");
-        map("Other_Junction", "Junction", "other");
-    }
-
-    private static void putBusiness(String... names) {
-        for (String n : names) map("Business_" + n, "Business" + n, "business");
-    }
-
-    private static void putApplication(String... names) {
-        for (String n : names) map("Application_" + n, "Application" + n, "application");
-    }
-
-    private static void map(String macro, String archiType, String layer) {
-        ELEMENT_TYPES.put(macro, archiType);
-        LAYER_OF.put(macro, layer);
+        // Macros whose ArchiMate type is just the suffix.
+        plain("business", "Business_Object:BusinessObject", "Business_Contract:Contract",
+                "Business_Representation:Representation", "Business_Product:Product");
+        plain("application", "Application_DataObject:DataObject");
+        plain("technology", "Technology_Node:Node", "Technology_Device:Device",
+                "Technology_SystemSoftware:SystemSoftware", "Technology_Path:Path",
+                "Technology_CommunicationNetwork:CommunicationNetwork", "Technology_Artifact:Artifact",
+                "Physical_Equipment:Equipment", "Physical_Facility:Facility",
+                "Physical_DistributionNetwork:DistributionNetwork", "Physical_Material:Material");
+        plain("motivation", "Motivation_Stakeholder:Stakeholder", "Motivation_Driver:Driver",
+                "Motivation_Assessment:Assessment", "Motivation_Goal:Goal", "Motivation_Outcome:Outcome",
+                "Motivation_Principle:Principle", "Motivation_Requirement:Requirement",
+                "Motivation_Constraint:Constraint", "Motivation_Meaning:Meaning", "Motivation_Value:Value");
+        plain("strategy", "Strategy_Resource:Resource", "Strategy_Capability:Capability",
+                "Strategy_CourseOfAction:CourseOfAction", "Strategy_ValueStream:ValueStream");
+        plain("implementation", "Implementation_WorkPackage:WorkPackage",
+                "Implementation_Deliverable:Deliverable", "Implementation_Event:ImplementationEvent",
+                "Implementation_Plateau:Plateau", "Implementation_Gap:Gap");
+        plain(OTHER_LAYER, "Other_Location:Location", "Other_Grouping:Grouping", "Other_Junction:Junction");
     }
 
     private ArchimatePlantUmlConverter() { }
 
-    public static final class Result {
-        private final ArchimateExchangeModel model;
-        private final List<String> warnings;
-
-        public Result(ArchimateExchangeModel model, List<String> warnings) {
-            this.model = model;
-            this.warnings = warnings;
-        }
-
-        public ArchimateExchangeModel model() { return model; }
-
-        public List<String> warnings() { return warnings; }
-    }
+    public record Result(ArchimateExchangeModel model, List<String> warnings) { }
 
     public static Result convert(String plantUmlSource, String modelName) {
-        ArchimateExchangeModel model = new ArchimateExchangeModel(modelName);
-        List<String> warnings = new ArrayList<>();
-        Map<String, String> idByAlias = new HashMap<>();
-
+        var model = new ArchimateExchangeModel(modelName);
+        var warnings = new ArrayList<String>();
+        var idByAlias = new HashMap<String, String>();
         boolean sawArchimateInclude = false;
 
         for (String raw : plantUmlSource.split("\\R")) {
             String line = raw.strip();
-            if (line.isEmpty() || line.startsWith("'") || line.startsWith("@")
-                    || line.startsWith("title") || line.startsWith("!")) {
-                if (line.contains("archimate/Archimate")) {
-                    sawArchimateInclude = true;
-                }
+            if (isDirective(line)) {
+                sawArchimateInclude |= line.contains("archimate/Archimate");
                 continue;
             }
 
             Matcher rel = RELATION.matcher(line);
             if (rel.find()) {
-
-                relationBuffer(warnings, idByAlias, model, rel);
+                addRelationship(model, idByAlias, warnings, rel);
                 continue;
             }
 
-            Matcher el = ELEMENT.matcher(line);
-            if (el.find()) {
-                String macro = el.group(1) + "_" + el.group(2);
-                String alias = el.group(3);
-                String name = el.group(4);
-                String archiType = ELEMENT_TYPES.get(macro);
-                if (archiType == null) {
-                    warnings.add("Unmapped element macro '" + macro + "' - skipped: " + line);
-                    continue;
-                }
-                String id = ArchimateExchangeModel.newId();
-                idByAlias.put(alias, id);
-                model.addElement(archiType, id, name, LAYER_OF.getOrDefault(macro, "other"));
+            Matcher element = ELEMENT.matcher(line);
+            if (element.find()) {
+                addElement(model, idByAlias, warnings, element, line);
                 continue;
             }
 
@@ -157,20 +99,49 @@ public final class ArchimatePlantUmlConverter {
         return new Result(model, warnings);
     }
 
-    private static void relationBuffer(List<String> warnings, Map<String, String> idByAlias,
-            ArchimateExchangeModel model, Matcher rel) {
-        String type = rel.group(1) + "Relationship";
-        String srcAlias = rel.group(2);
-        String tgtAlias = rel.group(3);
-        String label = rel.group(4);
+    private static boolean isDirective(String line) {
+        return line.isEmpty() || line.startsWith("'") || line.startsWith("@")
+                || line.startsWith("!") || line.startsWith("title");
+    }
 
-        String src = idByAlias.get(srcAlias);
-        String tgt = idByAlias.get(tgtAlias);
-        if (src == null || tgt == null) {
-            warnings.add("Relationship references unknown element(s) '"
-                    + (src == null ? srcAlias : tgtAlias) + "' - skipped.");
+    private static void addElement(ArchimateExchangeModel model, Map<String, String> idByAlias,
+            List<String> warnings, Matcher matcher, String line) {
+        String macro = matcher.group(1) + "_" + matcher.group(2);
+        Mapping mapping = MACROS.get(macro);
+        if (mapping == null) {
+            warnings.add("Unmapped element macro '" + macro + "' - skipped: " + line);
             return;
         }
-        model.addRelationship(type, ArchimateExchangeModel.newId(), src, tgt, label);
+        String id = ArchimateExchangeModel.newId();
+        idByAlias.put(matcher.group(3), id);
+        model.addElement(mapping.archiType(), id, matcher.group(4), mapping.layer());
+    }
+
+    private static void addRelationship(ArchimateExchangeModel model, Map<String, String> idByAlias,
+            List<String> warnings, Matcher matcher) {
+        String sourceAlias = matcher.group(2);
+        String targetAlias = matcher.group(3);
+        String source = idByAlias.get(sourceAlias);
+        String target = idByAlias.get(targetAlias);
+        if (source == null || target == null) {
+            warnings.add("Relationship references unknown element(s) '"
+                    + (source == null ? sourceAlias : targetAlias) + "' - skipped.");
+            return;
+        }
+        model.addRelationship(matcher.group(1) + "Relationship",
+                ArchimateExchangeModel.newId(), source, target, matcher.group(4));
+    }
+
+    private static void prefixed(String prefix, String layer, String... suffixes) {
+        for (String suffix : suffixes) {
+            MACROS.put(prefix + "_" + suffix, new Mapping(prefix + suffix, layer));
+        }
+    }
+
+    private static void plain(String layer, String... macroToType) {
+        for (String entry : macroToType) {
+            String[] parts = entry.split(":", 2);
+            MACROS.put(parts[0], new Mapping(parts[1], layer));
+        }
     }
 }

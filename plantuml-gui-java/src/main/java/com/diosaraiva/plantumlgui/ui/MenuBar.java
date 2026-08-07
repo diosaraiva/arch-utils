@@ -9,13 +9,11 @@ import java.awt.event.KeyEvent;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import javax.swing.ButtonGroup;
 import javax.swing.JFileChooser;
@@ -24,18 +22,32 @@ import javax.swing.JMenuBar;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
+import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import com.diosaraiva.plantumlgui.service.AppSettings;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 
+// Builds the whole menu bar; rebuilt from scratch whenever the language or window size changes.
 public final class MenuBar {
 
+    private record Resolution(int width, int height) {
+
+        String label() { return width + " x " + height; }
+    }
+
+    private static final List<Resolution> RESOLUTIONS = List.of(
+            new Resolution(1024, 600), new Resolution(1280, 720), new Resolution(1366, 768),
+            new Resolution(1440, 900), new Resolution(1600, 900), new Resolution(1920, 1080));
+
+    // Always available regardless of the installed fonts.
+    private static final Set<String> LOGICAL_FONTS =
+            Set.of("Dialog", "DialogInput", "SansSerif", "Serif", "Monospaced");
+
     private static final List<String> FONT_CHOICES = List.of(
-            "Dialog", "SansSerif", "Serif", "Monospaced",
-            "Arial", "Helvetica", "Verdana", "Tahoma",
-            "Times New Roman", "Courier New", "Menlo", "Consolas");
+            "Dialog", "SansSerif", "Serif", "Monospaced", "Arial", "Helvetica", "Verdana",
+            "Tahoma", "Times New Roman", "Courier New", "Menlo", "Consolas");
 
     private static final Map<String, Locale> LANGUAGES = new LinkedHashMap<>();
     static {
@@ -43,30 +55,6 @@ public final class MenuBar {
         LANGUAGES.put("Português (BR)", I18n.PT_BR);
         LANGUAGES.put("Español (ES)", I18n.ES_ES);
     }
-
-    private static final class Resolution {
-        private final int width;
-        private final int height;
-
-        Resolution(int width, int height) {
-            this.width = width;
-            this.height = height;
-        }
-
-        int width() { return width; }
-
-        int height() { return height; }
-
-        String label() { return width + " x " + height; }
-    }
-
-    private static final List<Resolution> RESOLUTIONS = List.of(
-            new Resolution(1024, 600),
-            new Resolution(1280, 720),
-            new Resolution(1366, 768),
-            new Resolution(1440, 900),
-            new Resolution(1600, 900),
-            new Resolution(1920, 1080));
 
     private MenuBar() { }
 
@@ -85,22 +73,6 @@ public final class MenuBar {
         menu.addSeparator();
         menu.add(menuItem(I18n.get("menu.file.quit"), KeyEvent.VK_Q, null, e -> System.exit(0)));
         return menu;
-    }
-
-    private static void onOpenFile(MainFrame frame) {
-        var chooser = new JFileChooser();
-        chooser.setDialogTitle(I18n.get("dialog.open.title"));
-        chooser.setFileFilter(new FileNameExtensionFilter(I18n.get("dialog.open.filter"), "puml"));
-        if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-        try {
-            var content = Files.readString(chooser.getSelectedFile().toPath());
-            frame.showPanel(frame.getPlantUmlPanel());
-            frame.getPlantUmlPanel().getInputPanel().setCode(content);
-        } catch (Exception ex) {
-            SwingUtils.showError(frame, I18n.get("file.open.failed", ex.getMessage()));
-        }
     }
 
     private static JMenu createEditMenu(MainFrame frame) {
@@ -125,6 +97,7 @@ public final class MenuBar {
         menu.add(menuItem(I18n.get("menu.edit.selectAll"), KeyEvent.VK_A,
                 KeyStroke.getKeyStroke(KeyEvent.VK_A, mod), e -> input.selectAll()));
 
+        // Keep the two history items in step with the editor's undo manager.
         Runnable sync = () -> {
             undo.setEnabled(input.canUndo());
             redo.setEnabled(input.canRedo());
@@ -143,72 +116,64 @@ public final class MenuBar {
         return menu;
     }
 
-    private static JMenu createLanguageMenu(MainFrame frame) {
-        var languageMenu = menu(I18n.get("menu.settings.language"), KeyEvent.VK_L);
-        var current = I18n.getLocale();
-        String selected = LANGUAGES.entrySet().stream()
-                .filter(e -> e.getValue().equals(current))
-                .map(Map.Entry::getKey)
-                .findFirst().orElse(null);
-        addRadioGroup(languageMenu, List.copyOf(LANGUAGES.keySet()), selected, label -> {
-            var locale = LANGUAGES.get(label);
-            AppSettings.setLanguage(locale);
-            I18n.setLocale(locale);
-            frame.reloadLanguage();
+    private static JMenu createThemeMenu(MainFrame frame) {
+        var menu = menu(I18n.get("menu.settings.theme"), KeyEvent.VK_T);
+        LookAndFeelInfo[] infos = UIManager.getInstalledLookAndFeels();
+        String currentClass = UIManager.getLookAndFeel().getClass().getName();
+        List<String> names = Arrays.stream(infos).map(LookAndFeelInfo::getName).toList();
+        String selected = Arrays.stream(infos)
+                .filter(info -> info.getClassName().equals(currentClass))
+                .map(LookAndFeelInfo::getName).findFirst().orElse(null);
+
+        addRadioGroup(menu, names, selected, name -> Arrays.stream(infos)
+                .filter(info -> info.getName().equals(name))
+                .findFirst()
+                .ifPresent(info -> applyLookAndFeel(info.getClassName(), frame)));
+        return menu;
+    }
+
+    private static JMenu createFontMenu(MainFrame frame) {
+        var menu = menu(I18n.get("menu.settings.font"), KeyEvent.VK_O);
+        var installed = Set.of(GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames());
+        List<String> choices = FONT_CHOICES.stream()
+                .filter(f -> LOGICAL_FONTS.contains(f) || installed.contains(f)).toList();
+        String current = UIManager.getFont("Label.font").getFamily();
+
+        addRadioGroup(menu, choices, choices.contains(current) ? current : null, family -> {
+            SwingUtils.applyFontFamily(family);
+            AppSettings.set(AppSettings.FONT, family);
+            frame.pack();
         });
-        return languageMenu;
+        return menu;
     }
 
     private static JMenu createWindowMenu(MainFrame frame) {
-        var windowMenu = menu(I18n.get("menu.settings.window"), KeyEvent.VK_W);
-        var labels = RESOLUTIONS.stream().map(Resolution::label).collect(Collectors.toList());
-        var current = frame.getSelectedWidth() + " x " + frame.getSelectedHeight();
-        addRadioGroup(windowMenu, labels, labels.contains(current) ? current : null,
+        var menu = menu(I18n.get("menu.settings.window"), KeyEvent.VK_W);
+        List<String> labels = RESOLUTIONS.stream().map(Resolution::label).toList();
+        String current = frame.getSelectedWidth() + " x " + frame.getSelectedHeight();
+
+        addRadioGroup(menu, labels, labels.contains(current) ? current : null,
                 label -> RESOLUTIONS.stream()
                         .filter(r -> r.label().equals(label))
                         .findFirst()
                         .ifPresent(r -> frame.applyResolution(r.width(), r.height())));
-        return windowMenu;
+        return menu;
     }
 
-    private static JMenu createThemeMenu(MainFrame frame) {
-        var themeMenu = menu(I18n.get("menu.settings.theme"), KeyEvent.VK_T);
-        var currentLaf = UIManager.getLookAndFeel().getClass().getName();
-        var infos = UIManager.getInstalledLookAndFeels();
+    private static JMenu createLanguageMenu(MainFrame frame) {
+        var menu = menu(I18n.get("menu.settings.language"), KeyEvent.VK_L);
+        Locale current = I18n.getLocale();
+        String selected = LANGUAGES.entrySet().stream()
+                .filter(e -> e.getValue().equals(current))
+                .map(Map.Entry::getKey).findFirst().orElse(null);
 
-        var names = new String[infos.length];
-        String selected = null;
-        for (int i = 0; i < infos.length; i++) {
-            names[i] = infos[i].getName();
-            if (infos[i].getClassName().equals(currentLaf)) {
-                selected = names[i];
-            }
-        }
-        addRadioGroup(themeMenu, Arrays.asList(names), selected, name -> {
-            for (var info : infos) {
-                if (info.getName().equals(name)) {
-                    applyLookAndFeel(info.getClassName(), frame);
-                    return;
-                }
-            }
+        addRadioGroup(menu, List.copyOf(LANGUAGES.keySet()), selected, label -> {
+            Locale locale = LANGUAGES.get(label);
+            AppSettings.setLanguage(locale);
+            I18n.setLocale(locale);
+            frame.reloadLanguage();
         });
-        return themeMenu;
-    }
-
-    private static JMenu createFontMenu(MainFrame frame) {
-        var fontMenu = menu(I18n.get("menu.settings.font"), KeyEvent.VK_O);
-        Set<String> installed = new LinkedHashSet<>(Arrays.asList(
-                GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()));
-        var choices = FONT_CHOICES.stream()
-                .filter(f -> installed.contains(f) || isLogicalFont(f))
-                .collect(Collectors.toList());
-        var current = UIManager.getFont("Label.font").getFamily();
-        addRadioGroup(fontMenu, choices, choices.contains(current) ? current : null,
-                family -> {
-                    SwingUtils.applyFontFamily(family);
-                    frame.pack();
-                });
-        return fontMenu;
+        return menu;
     }
 
     private static JMenu createHelpMenu(MainFrame frame) {
@@ -218,43 +183,48 @@ public final class MenuBar {
         return menu;
     }
 
-    private static JMenu menu(String text, int mnemonic) {
-        var menu = new JMenu(text);
-        menu.setMnemonic(mnemonic);
-        return menu;
-    }
-
-    private static void addRadioGroup(JMenu menu, List<String> labels,
-                                      String selected, Consumer<String> onSelect) {
-        var group = new ButtonGroup();
-        for (var label : labels) {
-            var item = new JRadioButtonMenuItem(label);
-            item.setSelected(label.equals(selected));
-            item.addActionListener(e -> onSelect.accept(label));
-            group.add(item);
-            menu.add(item);
+    private static void onOpenFile(MainFrame frame) {
+        var chooser = new JFileChooser();
+        chooser.setDialogTitle(I18n.get("dialog.open.title"));
+        chooser.setFileFilter(new FileNameExtensionFilter(I18n.get("dialog.open.filter"), "puml"));
+        if (chooser.showOpenDialog(frame) != JFileChooser.APPROVE_OPTION) {
+            return;
         }
-    }
-
-    private static boolean isLogicalFont(String family) {
-        switch (family) {
-            case "Dialog":
-            case "DialogInput":
-            case "SansSerif":
-            case "Serif":
-            case "Monospaced":
-                return true;
-            default:
-                return false;
+        try {
+            String content = Files.readString(chooser.getSelectedFile().toPath());
+            frame.showPanel(frame.getPlantUmlPanel());
+            frame.getPlantUmlPanel().getInputPanel().setCode(content);
+        } catch (Exception ex) {
+            SwingUtils.showError(frame, I18n.get("app.title"), I18n.get("file.open.failed", ex.getMessage()));
         }
     }
 
     private static void applyLookAndFeel(String className, MainFrame frame) {
         try {
             SwingUtils.applyLookAndFeel(className);
+            AppSettings.set(AppSettings.THEME, className);
             frame.pack();
         } catch (Exception ex) {
-            SwingUtils.showError(frame, I18n.get("theme.switch.failed", ex.getMessage()));
+            SwingUtils.showError(frame, I18n.get("app.title"), I18n.get("theme.switch.failed", ex.getMessage()));
+        }
+    }
+
+    private static JMenu menu(String text, int mnemonic) {
+        var menu = new JMenu(text);
+        menu.setMnemonic(mnemonic);
+        return menu;
+    }
+
+    // Mutually exclusive options rendered as radio items; every settings submenu uses this.
+    private static void addRadioGroup(JMenu menu, List<String> labels,
+                                      String selected, Consumer<String> onSelect) {
+        var group = new ButtonGroup();
+        for (String label : labels) {
+            var item = new JRadioButtonMenuItem(label);
+            item.setSelected(label.equals(selected));
+            item.addActionListener(e -> onSelect.accept(label));
+            group.add(item);
+            menu.add(item);
         }
     }
 }

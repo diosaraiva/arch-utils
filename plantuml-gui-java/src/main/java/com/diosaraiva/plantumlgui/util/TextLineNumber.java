@@ -4,7 +4,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
-import java.awt.Insets;
+import java.awt.Point;
 import java.awt.Rectangle;
 
 import javax.swing.BorderFactory;
@@ -18,10 +18,13 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.Element;
 import javax.swing.text.JTextComponent;
 
-public class TextLineNumber extends JComponent
-        implements CaretListener, DocumentListener {
+// Row header that paints line numbers next to a JTextComponent; install via JScrollPane.setRowHeaderView.
+@SuppressWarnings("serial")
+public final class TextLineNumber extends JComponent implements CaretListener, DocumentListener {
 
     private static final int MARGIN = 6;
+    private static final Color TEXT_COLOR = new Color(120, 120, 120);
+    private static final Color BORDER_COLOR = new Color(200, 200, 200);
 
     private final JTextComponent editor;
     private int lastDigits;
@@ -29,13 +32,12 @@ public class TextLineNumber extends JComponent
     public TextLineNumber(JTextComponent editor) {
         this.editor = editor;
         setFont(editor.getFont());
-        setForeground(new Color(120, 120, 120));
-        setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(200, 200, 200)));
+        setForeground(TEXT_COLOR);
+        setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, BORDER_COLOR));
 
         editor.getDocument().addDocumentListener(this);
         editor.addCaretListener(this);
-
-        editor.addPropertyChangeListener("font", evt -> {
+        editor.addPropertyChangeListener("font", e -> {
             setFont(editor.getFont());
             documentChanged();
         });
@@ -43,21 +45,15 @@ public class TextLineNumber extends JComponent
         updatePreferredWidth();
     }
 
-    private int getLineCount() {
-        Element root = editor.getDocument().getDefaultRootElement();
-        return root.getElementCount();
-    }
-
+    // Width only changes when the digit count does, so recompute lazily.
     private void updatePreferredWidth() {
-        int lines = getLineCount();
-        int digits = Math.max(String.valueOf(lines).length(), 2);
+        int digits = Math.max(String.valueOf(root().getElementCount()).length(), 2);
         if (digits == lastDigits) {
             return;
         }
         lastDigits = digits;
-        FontMetrics fm = getFontMetrics(getFont());
-        int width = fm.charWidth('0') * digits + MARGIN * 2;
-        Dimension size = new Dimension(width, Integer.MAX_VALUE - 1000000);
+        int width = getFontMetrics(getFont()).charWidth('0') * digits + MARGIN * 2;
+        Dimension size = new Dimension(width, Integer.MAX_VALUE - 1_000_000);
         setPreferredSize(size);
         setSize(size);
     }
@@ -68,36 +64,28 @@ public class TextLineNumber extends JComponent
 
         FontMetrics fm = editor.getFontMetrics(editor.getFont());
         g.setFont(editor.getFont());
+        g.setColor(getForeground());
 
         Rectangle clip = g.getClipBounds();
-        Insets insets = getInsets();
-        int availableWidth = getSize().width - insets.right - MARGIN;
+        int rightEdge = getSize().width - getInsets().right - MARGIN;
 
-        int startOffset = editor.viewToModel2D(new java.awt.Point(0, clip.y));
-        int endOffset = editor.viewToModel2D(new java.awt.Point(0, clip.y + clip.height));
-
-        Element root = editor.getDocument().getDefaultRootElement();
-        int startLine = root.getElementIndex(startOffset);
-        int endLine = root.getElementIndex(endOffset);
+        Element root = root();
+        int startLine = root.getElementIndex(editor.viewToModel2D(new Point(0, clip.y)));
+        int endLine = root.getElementIndex(editor.viewToModel2D(new Point(0, clip.y + clip.height)));
 
         for (int line = startLine; line <= endLine; line++) {
             try {
-                Element lineElement = root.getElement(line);
-                int lineStart = lineElement.getStartOffset();
-                Rectangle r = editor.modelToView2D(lineStart).getBounds();
-                if (r == null) {
-                    continue;
-                }
+                Rectangle r = editor.modelToView2D(root.getElement(line).getStartOffset()).getBounds();
                 String number = String.valueOf(line + 1);
-                int stringWidth = fm.stringWidth(number);
-                int x = availableWidth - stringWidth;
-                int y = r.y + fm.getAscent();
-                g.setColor(getForeground());
-                g.drawString(number, x, y);
-            } catch (BadLocationException ex) {
-
+                g.drawString(number, rightEdge - fm.stringWidth(number), r.y + fm.getAscent());
+            } catch (BadLocationException ignored) {
+                // Line vanished between layout and paint; nothing to draw.
             }
         }
+    }
+
+    private Element root() {
+        return editor.getDocument().getDefaultRootElement();
     }
 
     private void documentChanged() {
@@ -108,23 +96,11 @@ public class TextLineNumber extends JComponent
         });
     }
 
-    @Override
-    public void caretUpdate(CaretEvent e) {
-        repaint();
-    }
+    @Override public void caretUpdate(CaretEvent e)     { repaint(); }
 
-    @Override
-    public void insertUpdate(DocumentEvent e) {
-        documentChanged();
-    }
+    @Override public void insertUpdate(DocumentEvent e) { documentChanged(); }
 
-    @Override
-    public void removeUpdate(DocumentEvent e) {
-        documentChanged();
-    }
+    @Override public void removeUpdate(DocumentEvent e) { documentChanged(); }
 
-    @Override
-    public void changedUpdate(DocumentEvent e) {
-        documentChanged();
-    }
+    @Override public void changedUpdate(DocumentEvent e) { documentChanged(); }
 }

@@ -17,46 +17,44 @@ import javax.swing.event.HyperlinkEvent;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 
-public class AboutDialog extends JDialog {
+// Modal About box; VERSION is the single place the released app version is declared.
+@SuppressWarnings("serial")
+public final class AboutDialog extends JDialog {
 
     private static final String REPO_URL = "https://github.com/diosaraiva/plantuml-gui";
     private static final String VERSION = "1.2.1";
 
     public AboutDialog(JFrame parent) {
         super(parent, I18n.get("about.title"), true);
-        initComponents();
-    }
-
-    private void initComponents() {
         setLayout(new BorderLayout(8, 8));
         getRootPane().setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
-        var infoPanel = new JPanel(new BorderLayout(8, 8));
+        var info = new JPanel(new BorderLayout(8, 8));
+        info.add(centeredLabel(I18n.get("about.title"), 18f), BorderLayout.NORTH);
+        info.add(createDescriptionPane(), BorderLayout.CENTER);
+        info.add(centeredLabel(I18n.get("about.version", VERSION), 0f), BorderLayout.SOUTH);
+        add(info, BorderLayout.CENTER);
 
-        var titleLabel = new JLabel(I18n.get("about.title"));
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 18f));
-        titleLabel.setHorizontalAlignment(JLabel.CENTER);
-        infoPanel.add(titleLabel, BorderLayout.NORTH);
-
-        infoPanel.add(createDescriptionPane(), BorderLayout.CENTER);
-
-        var versionLabel = new JLabel(I18n.get("about.version", VERSION));
-        versionLabel.setHorizontalAlignment(JLabel.CENTER);
-        infoPanel.add(versionLabel, BorderLayout.SOUTH);
-
-        add(infoPanel, BorderLayout.CENTER);
-
-        var okButton = new JButton(I18n.get("about.ok"));
-        okButton.addActionListener(e -> dispose());
-        var buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        buttonPanel.add(okButton);
-        add(buttonPanel, BorderLayout.SOUTH);
+        var ok = new JButton(I18n.get("about.ok"));
+        ok.addActionListener(e -> dispose());
+        var buttons = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        buttons.add(ok);
+        add(buttons, BorderLayout.SOUTH);
 
         pack();
         setResizable(false);
-        setLocationRelativeTo(getParent());
+        setLocationRelativeTo(parent);
     }
 
+    private static JLabel centeredLabel(String text, float boldSize) {
+        var label = new JLabel(text, JLabel.CENTER);
+        if (boldSize > 0f) {
+            label.setFont(label.getFont().deriveFont(Font.BOLD, boldSize));
+        }
+        return label;
+    }
+
+    // HTML pane so the description can carry the clickable repository link.
     private JEditorPane createDescriptionPane() {
         var pane = new JEditorPane("text/html", I18n.get("about.description", REPO_URL));
         pane.setEditable(false);

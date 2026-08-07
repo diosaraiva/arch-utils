@@ -14,20 +14,26 @@ import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionListener;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.logging.Logger;
 
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JEditorPane;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.plaf.FontUIResource;
 
+// Swing boilerplate shared by every panel: widget factories, clipboard, dialogs, look and feel.
 public final class SwingUtils {
+
+    private static final Logger LOG = Logger.getLogger(SwingUtils.class.getName());
 
     private SwingUtils() { }
 
@@ -35,6 +41,7 @@ public final class SwingUtils {
         return Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
     }
 
+    // Adapts the three DocumentListener callbacks to a single Runnable.
     public static DocumentListener onDocumentChange(Runnable onChange) {
         return new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent e)  { onChange.run(); }
@@ -65,13 +72,11 @@ public final class SwingUtils {
     }
 
     public static void copyText(String text) {
-        Toolkit.getDefaultToolkit().getSystemClipboard()
-                .setContents(new StringSelection(text), null);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(text), null);
     }
 
     public static void copyImage(Image image) {
-        Toolkit.getDefaultToolkit().getSystemClipboard()
-                .setContents(new ImageTransferable(image), null);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new ImageTransferable(image), null);
     }
 
     public static void browse(String url) {
@@ -80,29 +85,40 @@ public final class SwingUtils {
                 Desktop.getDesktop().browse(new URI(url));
             }
         } catch (Exception ex) {
-            System.err.println("Failed to open URL " + url + ": " + ex.getMessage());
+            LOG.warning(() -> "Failed to open URL " + url + ": " + ex.getMessage());
         }
     }
 
-    public static void showError(Component parent, String message) {
-        JOptionPane.showMessageDialog(parent, message, "Error", JOptionPane.ERROR_MESSAGE);
+    public static void showInfo(Component parent, String title, String message) {
+        JOptionPane.showMessageDialog(parent, message, title, JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    public static void showError(Component parent, String title, String message) {
+        JOptionPane.showMessageDialog(parent, message, title, JOptionPane.ERROR_MESSAGE);
+    }
+
+    public static boolean confirm(Component parent, String title, String message) {
+        return JOptionPane.showConfirmDialog(parent, message, title,
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
     }
 
     public static void useUiFont(JComponent component) {
-        component.putClientProperty(javax.swing.JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+        component.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
         component.setFont(UIManager.getFont("Label.font"));
     }
 
-    public static void applyLookAndFeel(String className) throws Exception {
-        UIManager.setLookAndFeel(className);
+    // Applies a look and feel by class name; blank falls back to the cross-platform one.
+    public static void applyLookAndFeel(String className)
+            throws ReflectiveOperationException, UnsupportedLookAndFeelException {
+        UIManager.setLookAndFeel(className == null || className.isBlank()
+                ? UIManager.getCrossPlatformLookAndFeelClassName() : className);
         refreshAllWindows();
     }
 
     public static void applyFontFamily(String family) {
-        for (var key : new ArrayList<>(UIManager.getDefaults().keySet())) {
-            Object value = UIManager.get(key);
-            if (value instanceof Font) {
-                Font font = (Font) value;
+        if (family == null || family.isBlank()) { return; }
+        for (Object key : new ArrayList<>(UIManager.getDefaults().keySet())) {
+            if (UIManager.get(key) instanceof Font font) {
                 UIManager.put(key, new FontUIResource(family, font.getStyle(), font.getSize()));
             }
         }
@@ -110,24 +126,22 @@ public final class SwingUtils {
     }
 
     public static void refreshAllWindows() {
-        for (var window : Window.getWindows()) {
+        for (Window window : Window.getWindows()) {
             SwingUtilities.updateComponentTreeUI(window);
+            window.validate();
         }
     }
 
-    private static final class ImageTransferable implements Transferable {
-        private final Image image;
-
-        ImageTransferable(Image image) {
-            this.image = image;
-        }
+    private record ImageTransferable(Image image) implements Transferable {
 
         @Override public DataFlavor[] getTransferDataFlavors() {
-            return new DataFlavor[]{DataFlavor.imageFlavor};
+            return new DataFlavor[] { DataFlavor.imageFlavor };
         }
+
         @Override public boolean isDataFlavorSupported(DataFlavor flavor) {
             return DataFlavor.imageFlavor.equals(flavor);
         }
+
         @Override public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException {
             if (!DataFlavor.imageFlavor.equals(flavor)) {
                 throw new UnsupportedFlavorException(flavor);

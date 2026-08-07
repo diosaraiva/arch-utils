@@ -5,200 +5,63 @@ import java.awt.Component;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.io.File;
+import java.util.List;
 
 import javax.swing.BorderFactory;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
+import com.diosaraiva.plantumlgui.service.AppSettings;
 import com.diosaraiva.plantumlgui.service.ArchimatePlantUmlConverter;
 import com.diosaraiva.plantumlgui.service.PlantUmlFormat;
 import com.diosaraiva.plantumlgui.service.PlantUmlRenderer;
 import com.diosaraiva.plantumlgui.util.Background;
+import com.diosaraiva.plantumlgui.util.FileNames;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 
-public class PlantUmlPanel extends JPanel {
+// Wires input, output and footer together and owns every render/export workflow.
+@SuppressWarnings("serial")
+public final class PlantUmlPanel extends JPanel {
 
-    private static final int PREVIEW_DELAY_MS = 800;
     private static final double INPUT_WEIGHT = 0.4;
+    private static final int DEFAULT_PREVIEW_DELAY_MS = 800;
 
-    private final PlantUmlInputPanel inputPanel;
-    private final PlantUmlOutputPanel outputPanel;
-    private final PlantUmlFooterPanel footerPanel;
-    private final Timer previewTimer;
+    private final PlantUmlInputPanel inputPanel = new PlantUmlInputPanel();
+    private final PlantUmlOutputPanel outputPanel = new PlantUmlOutputPanel(this::renderPreview);
+    private final PlantUmlFooterPanel footerPanel = new PlantUmlFooterPanel();
+
+    // Coalesces keystrokes into a single render while auto preview is on.
+    private final Timer previewTimer = new Timer(
+            AppSettings.getInt(AppSettings.PREVIEW_DELAY_MS, DEFAULT_PREVIEW_DELAY_MS), e -> renderPreview());
+
+    private record ExportResult(File output, File preview) { }
 
     public PlantUmlPanel() {
-        var defaultTarget = resolveDefaultTarget("png");
-        inputPanel = new PlantUmlInputPanel();
-        outputPanel = new PlantUmlOutputPanel(this::onLivePreview);
-        footerPanel = new PlantUmlFooterPanel(defaultTarget);
-
-        previewTimer = new Timer(PREVIEW_DELAY_MS, e -> onLivePreview());
+        super(new BorderLayout(8, 8));
+        setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
         previewTimer.setRepeats(false);
 
-        initComponents();
-    }
-
-    private void initComponents() {
-        setLayout(new BorderLayout(8, 8));
-        setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-        var input = section(inputPanel.getEditorComponent(), inputPanel.getControlsComponent());
-        var output = section(outputPanel, null);
-        var split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, input, output);
-        split.setResizeWeight(INPUT_WEIGHT);
-        split.setContinuousLayout(true);
-        split.setBorder(null);
-        split.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                split.setDividerLocation(INPUT_WEIGHT);
-                split.removeComponentListener(this);
-            }
-        });
-
-        add(split, BorderLayout.CENTER);
+        add(buildSplit(), BorderLayout.CENTER);
         add(footerPanel, BorderLayout.SOUTH);
 
-        footerPanel.onExportDiagram(e -> onExportDiagram());
-        footerPanel.onFormatChanged(e -> onFormatChanged());
+        footerPanel.onExportDiagram(e -> exportDiagram());
+        footerPanel.onFormatChanged(e -> footerPanel.setTargetFileExtension(footerPanel.getSelectedFormat()));
         footerPanel.onCopyImage(e -> copyImageToClipboard());
         footerPanel.setCopyImageEnabled(false);
 
         inputPanel.addCodeDocumentListener(SwingUtils.onDocumentChange(this::restartPreviewTimer));
-        inputPanel.addPreviewButtonListener(e -> onLivePreview());
+        inputPanel.addPreviewButtonListener(e -> renderPreview());
         inputPanel.addAutoPreviewListener(e -> {
-            if (inputPanel.isAutoPreviewEnabled()) { onLivePreview(); }
+            if (inputPanel.isAutoPreviewEnabled()) { renderPreview(); }
         });
 
-        SwingUtilities.invokeLater(this::onLivePreview);
+        SwingUtilities.invokeLater(this::renderPreview);
     }
 
-    private static JPanel section(Component center, Component south) {
-        var panel = new JPanel(new BorderLayout(0, 4));
-        panel.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
-        if (center != null) { panel.add(center, BorderLayout.CENTER); }
-        if (south != null) { panel.add(south, BorderLayout.SOUTH); }
-        return panel;
-    }
-
-    private void restartPreviewTimer() {
-        if (inputPanel.isAutoPreviewEnabled()) { previewTimer.restart(); }
-    }
-
-    private void onLivePreview() {
-        var code = inputPanel.getCode();
-        if (code.isEmpty()) {
-            outputPanel.showMessage(I18n.get("plantuml.code.empty"));
-            return;
-        }
-        outputPanel.showRendering();
-        var tempDir = resolveTempDir();
-
-        Background.run(
-                () -> PlantUmlRenderer.compilePreview(code, tempDir),
-                result -> {
-                    outputPanel.showCompileResult(result);
-                    footerPanel.setCopyImageEnabled(outputPanel.getCurrentImage() != null);
-                },
-                ex -> {
-                    outputPanel.showRenderError(ex);
-                    footerPanel.setCopyImageEnabled(false);
-                });
-    }
-
-    private void onFormatChanged() {
-        footerPanel.setTargetFileExtension(footerPanel.getSelectedFormat());
-    }
-
-    private void onExportDiagram() {
-        var code = inputPanel.getCode();
-        var target = footerPanel.getTargetFile();
-        if (code.isEmpty()) { showError(I18n.get("plantuml.code.empty")); return; }
-        if (target.isEmpty()) { showError(I18n.get("export.target.empty")); return; }
-        if (footerPanel.isArchimateSelected()) { onExportArchimate(code, target); return; }
-
-        outputPanel.showMessage(I18n.get("export.exporting"));
-        var tempDir = resolveTempDir();
-        var format = PlantUmlFormat.fromExtension(footerPanel.getSelectedFormat())
-                .orElse(PlantUmlFormat.PNG);
-
-        Background.run(
-                () -> {
-                    var output = new File(target);
-                    PlantUmlRenderer.export(code, output, format);
-
-                    File preview = format == PlantUmlFormat.SVG
-                            ? PlantUmlRenderer.compilePreview(code, tempDir).previewImage() : null;
-                    return new ExportResult(output, preview);
-                },
-                result -> {
-                    try {
-                        outputPanel.showDiagram(result.output(), result.preview());
-                        footerPanel.setCopyImageEnabled(outputPanel.getCurrentImage() != null);
-                        JOptionPane.showMessageDialog(this,
-                                I18n.get("export.success.msg", result.output().getAbsolutePath()),
-                                I18n.get("export.success.title"), JOptionPane.INFORMATION_MESSAGE);
-                    } catch (Exception ex) {
-                        outputPanel.showMessage(I18n.get("plantuml.preview.error", ex.getMessage()));
-                    }
-                },
-                ex -> {
-                    outputPanel.showMessage(I18n.get("plantuml.preview.error", ex.getMessage()));
-                    JOptionPane.showMessageDialog(this, I18n.get("export.fail.msg", ex.getMessage()),
-                            I18n.get("export.error.title"), JOptionPane.ERROR_MESSAGE);
-                });
-    }
-
-    private void onExportArchimate(String code, String target) {
-        var path = target.toLowerCase().endsWith(".xml") ? target : target + ".xml";
-        var output = new File(path);
-        var modelName = deriveModelName(output);
-        outputPanel.selectConsole();
-        outputPanel.appendConsole(I18n.get("archimate.export.started"), I18n.get("archimate.export.converting"));
-
-        Background.run(
-                () -> {
-                    var result = ArchimatePlantUmlConverter.convert(code, modelName);
-                    result.model().writeTo(output);
-                    return result;
-                },
-                result -> {
-                    var warnings = result.warnings();
-                    var sb = new StringBuilder("Wrote ").append(output.getAbsolutePath())
-                            .append(System.lineSeparator())
-                            .append("Elements: ").append(result.model().getElementCount())
-                            .append(", Relationships: ").append(result.model().getRelationshipCount());
-                    for (var w : warnings) {
-                        sb.append(System.lineSeparator()).append("  - ").append(w);
-                    }
-                    outputPanel.appendConsole(I18n.get("archimate.export.finished"), sb.toString());
-                    var extra = warnings.isEmpty() ? ""
-                            : I18n.get("archimate.export.warnings", warnings.size());
-                    JOptionPane.showMessageDialog(this,
-                            I18n.get("archimate.export.msg", output.getAbsolutePath()) + extra,
-                            I18n.get("export.success.title"), JOptionPane.INFORMATION_MESSAGE);
-                },
-                ex -> {
-                    outputPanel.appendConsole(I18n.get("archimate.export.failed"), String.valueOf(ex.getMessage()));
-                    JOptionPane.showMessageDialog(this, I18n.get("archimate.export.failmsg", ex.getMessage()),
-                            I18n.get("export.error.title"), JOptionPane.ERROR_MESSAGE);
-                });
-    }
-
-    private void showError(String message) {
-        JOptionPane.showMessageDialog(this, message,
-                I18n.get("export.error.title"), JOptionPane.ERROR_MESSAGE);
-    }
-
-    private static String deriveModelName(File file) {
-        var name = file.getName();
-        int dot = name.lastIndexOf('.');
-        return dot > 0 ? name.substring(0, dot) : name;
-    }
+    public PlantUmlInputPanel getInputPanel() { return inputPanel; }
 
     public boolean copyImageToClipboard() {
         var image = outputPanel.getCurrentImage();
@@ -216,28 +79,134 @@ public class PlantUmlPanel extends JPanel {
         footerPanel.applyLanguage();
     }
 
-    private static String resolveTempDir() {
-        return System.getProperty("user.dir") + File.separator + "temp";
+    private JSplitPane buildSplit() {
+        var split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                section(inputPanel.getEditorComponent(), inputPanel.getControlsComponent()),
+                section(outputPanel, null));
+        split.setResizeWeight(INPUT_WEIGHT);
+        split.setContinuousLayout(true);
+        split.setBorder(null);
+        // The divider can only be positioned once the split pane has a real width.
+        split.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                split.setDividerLocation(INPUT_WEIGHT);
+                split.removeComponentListener(this);
+            }
+        });
+        return split;
     }
 
-    private static String resolveDefaultTarget(String ext) {
-        return System.getProperty("user.dir") + File.separator + "output"
-                + File.separator + "target." + ext;
+    private static JPanel section(Component center, Component south) {
+        var panel = new JPanel(new BorderLayout(0, 4));
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
+        if (center != null) { panel.add(center, BorderLayout.CENTER); }
+        if (south != null) { panel.add(south, BorderLayout.SOUTH); }
+        return panel;
     }
 
-    public PlantUmlInputPanel getInputPanel() { return inputPanel; }
+    private void restartPreviewTimer() {
+        if (inputPanel.isAutoPreviewEnabled()) { previewTimer.restart(); }
+    }
 
-    private static final class ExportResult {
-        private final File output;
-        private final File preview;
-
-        ExportResult(File output, File preview) {
-            this.output = output;
-            this.preview = preview;
+    private void renderPreview() {
+        String code = inputPanel.getCode();
+        if (code.isEmpty()) {
+            outputPanel.showMessage(I18n.get("plantuml.code.empty"));
+            return;
         }
+        outputPanel.showRendering();
+        Background.run(() -> PlantUmlRenderer.compilePreview(code),
+                result -> {
+                    outputPanel.showCompileResult(result);
+                    footerPanel.setCopyImageEnabled(outputPanel.getCurrentImage() != null);
+                },
+                ex -> {
+                    outputPanel.showRenderError(ex);
+                    footerPanel.setCopyImageEnabled(false);
+                });
+    }
 
-        File output() { return output; }
+    private void exportDiagram() {
+        String code = inputPanel.getCode();
+        String target = footerPanel.getTargetFile();
+        PlantUmlFormat format = footerPanel.getSelectedFormat();
 
-        File preview() { return preview; }
+        if (code.isEmpty()) {
+            showError(I18n.get("plantuml.code.empty"));
+        } else if (target.isEmpty()) {
+            showError(I18n.get("export.target.empty"));
+        } else if (format == PlantUmlFormat.ARCHIMATE) {
+            exportArchimate(code, FileNames.withExtension(target, format.extension()));
+        } else {
+            exportDiagram(code, new File(target), format);
+        }
+    }
+
+    private void exportDiagram(String code, File output, PlantUmlFormat format) {
+        outputPanel.showMessage(I18n.get("export.exporting"));
+        Background.run(
+                () -> {
+                    PlantUmlRenderer.export(code, output, format);
+                    // SVG is not paintable, so render a throw-away PNG to show in the preview.
+                    File preview = format == PlantUmlFormat.SVG
+                            ? PlantUmlRenderer.compilePreview(code).previewImage() : null;
+                    return new ExportResult(output, preview);
+                },
+                result -> {
+                    try {
+                        outputPanel.showDiagram(result.output(), result.preview());
+                        footerPanel.setCopyImageEnabled(outputPanel.getCurrentImage() != null);
+                        SwingUtils.showInfo(this, I18n.get("export.success.title"),
+                                I18n.get("export.success.msg", result.output().getAbsolutePath()));
+                    } catch (Exception ex) {
+                        outputPanel.showMessage(I18n.get("plantuml.preview.error", ex.getMessage()));
+                    }
+                },
+                ex -> {
+                    outputPanel.showMessage(I18n.get("plantuml.preview.error", ex.getMessage()));
+                    showError(I18n.get("export.fail.msg", ex.getMessage()));
+                });
+    }
+
+    private void exportArchimate(String code, String targetPath) {
+        File output = new File(targetPath);
+        String modelName = FileNames.baseName(output);
+        outputPanel.selectConsole();
+        outputPanel.appendConsole(I18n.get("archimate.export.started"),
+                I18n.get("archimate.export.converting"));
+
+        Background.run(
+                () -> {
+                    var result = ArchimatePlantUmlConverter.convert(code, modelName);
+                    result.model().writeTo(output);
+                    return result;
+                },
+                result -> {
+                    List<String> warnings = result.warnings();
+                    outputPanel.appendConsole(I18n.get("archimate.export.finished"),
+                            archimateSummary(output, result, warnings));
+                    SwingUtils.showInfo(this, I18n.get("export.success.title"),
+                            I18n.get("archimate.export.msg", output.getAbsolutePath())
+                                    + (warnings.isEmpty() ? ""
+                                            : I18n.get("archimate.export.warnings", warnings.size())));
+                },
+                ex -> {
+                    outputPanel.appendConsole(I18n.get("archimate.export.failed"),
+                            String.valueOf(ex.getMessage()));
+                    showError(I18n.get("archimate.export.failmsg", ex.getMessage()));
+                });
+    }
+
+    private static String archimateSummary(File output, ArchimatePlantUmlConverter.Result result,
+            List<String> warnings) {
+        var sb = new StringBuilder(I18n.get("archimate.export.summary", output.getAbsolutePath(),
+                result.model().getElementCount(), result.model().getRelationshipCount()));
+        warnings.forEach(w -> sb.append(System.lineSeparator()).append("  - ").append(w));
+        return sb.toString();
+    }
+
+    private void showError(String message) {
+        SwingUtils.showError(this, I18n.get("export.error.title"), message);
     }
 }

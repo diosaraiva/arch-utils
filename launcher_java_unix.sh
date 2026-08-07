@@ -5,39 +5,15 @@
 #  Interactive menu:
 #    1) Run without compiling (java source-code launcher, no .class files)
 #    2) Compile (only if needed) then run from compiled classes
-#    3) Clean build artifacts
-#    4) Exit
+#    3) Clean build artifacts (also restores the default configuration)
+#    4) Restore default configuration
+#    5) Exit
 # =============================================================================
 
 set -u
 
-# -----------------------------------------------------------------------------
-# Configuration - adjust here if the project layout changes
-# -----------------------------------------------------------------------------
-PROJECT_DIR_NAME="plantuml-gui-java"   # module folder that holds src/, bin/, ...
-SRC_DIR="src/main/java"                # root of the java source tree
-RES_DIR="src/main/resources"           # runtime resources (i18n, plantuml jar)
-OUT_DIR="bin"                          # compiled .class output dir
-MAIN_CLASS="com.diosaraiva.plantumlgui.Main"
-CLEAN_DIRS="bin out build target temp output"   # removed by option 3
-JAVAC_RELEASE=""                       # e.g. "17" to force --release; empty = default
-
-# Optional overrides from launcher_java_config.ini (simple KEY=VALUE lines)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/launcher_java_config.ini"
-if [ -f "$CONFIG_FILE" ] && [ -s "$CONFIG_FILE" ]; then
-    # shellcheck disable=SC1090
-    . "$CONFIG_FILE"
-fi
-
-# The app resolves resources relative to user.dir, so always run from the module
-PROJECT_DIR="$SCRIPT_DIR/$PROJECT_DIR_NAME"
-[ -d "$PROJECT_DIR" ] || PROJECT_DIR="$SCRIPT_DIR"
-
-# Derived paths
-MAIN_REL_PATH="$(printf '%s' "$MAIN_CLASS" | tr '.' '/')"
-MAIN_SRC_FILE="$SRC_DIR/$MAIN_REL_PATH.java"
-MAIN_CLASS_FILE="$OUT_DIR/$MAIN_REL_PATH.class"
+CONFIG_FILE="$SCRIPT_DIR/java_config.ini"
 
 # -----------------------------------------------------------------------------
 # Colors / formatting (degrade gracefully when the terminal has no color)
@@ -57,6 +33,80 @@ info()  { printf '%s[INFO]%s  %s\n'  "$CYAN"   "$RESET" "$*"; }
 ok()    { printf '%s[ OK ]%s  %s\n'  "$GREEN"  "$RESET" "$*"; }
 warn()  { printf '%s[WARN]%s  %s\n'  "$YELLOW" "$RESET" "$*"; }
 err()   { printf '%s[FAIL]%s  %s\n'  "$RED"    "$RESET" "$*" >&2; }
+
+# -----------------------------------------------------------------------------
+# Configuration - every value lives in java_config.ini, shared with the app
+# -----------------------------------------------------------------------------
+# Reads one key from the INI file. Keys are dotted (app.language, launcher.srcDir),
+# which are NOT valid shell variable names, so the file is parsed - never sourced.
+# Usage: ini_get <key> [fallback]
+ini_get() {
+    _key="$1"
+    _fallback="${2:-}"
+    _value=""
+    if [ -f "$CONFIG_FILE" ]; then
+        _value="$(awk -v key="$_key" '
+            { sub(/\r$/, "") }                       # tolerate CRLF files
+            /^[[:space:]]*[#;]/ { next }             # skip comments
+            {
+                eq = index($0, "=")
+                if (eq == 0) next
+                k = substr($0, 1, eq - 1)
+                v = substr($0, eq + 1)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", k)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+                if (k == key) { print v; exit }
+            }' "$CONFIG_FILE")"
+    fi
+    [ -n "$_value" ] && printf '%s\n' "$_value" || printf '%s\n' "$_fallback"
+}
+
+# Prints the path of the bundled factory default shipped in a module's resources dir.
+config_template() {
+    for _t in "$SCRIPT_DIR"/*/src/main/resources/java_config.ini; do
+        [ -f "$_t" ] && { printf '%s\n' "$_t"; return 0; }
+    done
+    return 1
+}
+
+# Overwrites the active java_config.ini with the bundled default - the same
+# behaviour as the 'Default' button in the app's Config tab.
+restore_config() {
+    _template="$(config_template)" || {
+        err "Bundled default not found: <module>/src/main/resources/java_config.ini"
+        return 1
+    }
+    cp "$_template" "$CONFIG_FILE" || { err "Could not write $CONFIG_FILE"; return 1; }
+    ok "Configuration restored from $_template"
+    load_settings
+    return 0
+}
+
+# (Re)reads every launcher setting; called at start-up and after a restore.
+load_settings() {
+    PROJECT_DIR_NAME="$(ini_get launcher.projectDir plantuml-gui-java)"
+    SRC_DIR="$(ini_get launcher.srcDir src/main/java)"
+    RES_DIR="$(ini_get launcher.resDir src/main/resources)"
+    OUT_DIR="$(ini_get launcher.outDir bin)"
+    MAIN_CLASS="$(ini_get launcher.mainClass com.diosaraiva.plantumlgui.Main)"
+    CLEAN_DIRS="$(ini_get launcher.cleanDirs 'bin out build target temp output')"
+    JAVAC_RELEASE="$(ini_get launcher.javacRelease)"
+
+    # The app resolves resources relative to user.dir, so always run from the module
+    PROJECT_DIR="$SCRIPT_DIR/$PROJECT_DIR_NAME"
+    [ -d "$PROJECT_DIR" ] || PROJECT_DIR="$SCRIPT_DIR"
+
+    MAIN_REL_PATH="$(printf '%s' "$MAIN_CLASS" | tr '.' '/')"
+    MAIN_SRC_FILE="$SRC_DIR/$MAIN_REL_PATH.java"
+    MAIN_CLASS_FILE="$OUT_DIR/$MAIN_REL_PATH.class"
+}
+
+# Missing active config? Recreate it from the bundled default.
+if [ -f "$CONFIG_FILE" ]; then
+    load_settings
+else
+    restore_config >/dev/null 2>&1 || load_settings
+fi
 
 # -----------------------------------------------------------------------------
 # JDK detection
@@ -233,7 +283,7 @@ compile_and_run() {
 }
 
 # =============================================================================
-# Option 3 - Clean build artifacts (with confirmation + summary)
+# Option 3 - Clean build artifacts + restore the default configuration
 # =============================================================================
 clean_artifacts() {
     found=""
@@ -242,12 +292,10 @@ clean_artifacts() {
     done
     stray_classes="$(find "$SRC_DIR" -name '*.class' -type f 2>/dev/null | wc -l | tr -d ' ')"
 
-    if [ -z "$found" ] && [ "$stray_classes" -eq 0 ]; then
-        ok "Nothing to clean - no build artifacts found."
-        return 0
-    fi
-
     printf '\n%sThe following will be removed (under %s):%s\n' "$BOLD" "$PROJECT_DIR" "$RESET"
+    if [ -z "$found" ] && [ "$stray_classes" -eq 0 ]; then
+        printf '  %s- nothing, no build artifacts found%s\n' "$YELLOW" "$RESET"
+    fi
     for d in $found; do
         count="$(find "$d" -type f 2>/dev/null | wc -l | tr -d ' ')"
         printf '  %s- %s/%s (%s files)\n' "$YELLOW" "$d" "$RESET" "$count"
@@ -255,12 +303,14 @@ clean_artifacts() {
     if [ "$stray_classes" -gt 0 ]; then
         printf '  %s- %s stray .class file(s) under %s%s\n' "$YELLOW" "$stray_classes" "$SRC_DIR" "$RESET"
     fi
+    printf '\n%sAnd this file will be reset to the bundled defaults:%s\n' "$BOLD" "$RESET"
+    printf '  %s- %s%s\n' "$YELLOW" "$CONFIG_FILE" "$RESET"
 
-    printf '\n%sConfirm deletion? [y/N]: %s' "$BOLD" "$RESET"
+    printf '\n%sConfirm clean? [y/N]: %s' "$BOLD" "$RESET"
     read -r answer || answer=""
     case "$answer" in
         [yY]|[yY][eE][sS]) ;;
-        *) info "Clean cancelled - nothing was removed."; return 0 ;;
+        *) info "Clean cancelled - nothing was removed or reset."; return 0 ;;
     esac
 
     removed_dirs=0
@@ -282,6 +332,33 @@ clean_artifacts() {
     fi
 
     ok "Clean complete: $removed_dirs directory(ies), $removed_files file(s) removed."
+    # A clean also puts the configuration back to its factory state.
+    restore_config || return 1
+    cd "$PROJECT_DIR" 2>/dev/null || true
+    return 0
+}
+
+# =============================================================================
+# Option 4 - Restore the default configuration only
+# =============================================================================
+restore_config_interactive() {
+    _template="$(config_template)" || {
+        err "Bundled default not found: <module>/src/main/resources/java_config.ini"
+        return 1
+    }
+    printf '\n%sOverwrite the active configuration with the bundled defaults?%s\n' "$BOLD" "$RESET"
+    printf '  %sfrom%s %s\n' "$CYAN" "$RESET" "$_template"
+    printf '  %sto  %s %s\n' "$CYAN" "$RESET" "$CONFIG_FILE"
+
+    printf '\n%sConfirm restore? [y/N]: %s' "$BOLD" "$RESET"
+    read -r answer || answer=""
+    case "$answer" in
+        [yY]|[yY][eE][sS]) ;;
+        *) info "Restore cancelled - the configuration was left untouched."; return 0 ;;
+    esac
+
+    restore_config || return 1
+    cd "$PROJECT_DIR" 2>/dev/null || true
     return 0
 }
 
@@ -293,6 +370,7 @@ show_menu() {
     printf '%s%s         PlantUML GUI - Launcher        %s\n'   "$BOLD" "$BLUE" "$RESET"
     printf '%s%s========================================%s\n'   "$BOLD" "$BLUE" "$RESET"
     printf '  project : %s\n' "$PROJECT_DIR"
+    printf '  config  : %s\n' "$CONFIG_FILE"
     printf '  java    : %s (major %s)\n' "$(java -version 2>&1 | head -n 1)" "$(java_major_version java)"
     if is_build_fresh; then
         printf '  build   : %sup to date%s\n' "$GREEN" "$RESET"
@@ -302,10 +380,11 @@ show_menu() {
         printf '  build   : %snot compiled%s\n' "$RED" "$RESET"
     fi
     printf '%s----------------------------------------%s\n' "$BLUE" "$RESET"
-    printf '  %s1)%s Run without compiling (source mode)\n' "$BOLD" "$RESET"
-    printf '  %s2)%s Compile (if needed) and run\n'         "$BOLD" "$RESET"
-    printf '  %s3)%s Clean build artifacts\n'               "$BOLD" "$RESET"
-    printf '  %s4)%s Exit\n'                                "$BOLD" "$RESET"
+    printf '  %s1)%s Run without compiling (source mode)\n'  "$BOLD" "$RESET"
+    printf '  %s2)%s Compile (if needed) and run\n'          "$BOLD" "$RESET"
+    printf '  %s3)%s Clean build artifacts + reset config\n' "$BOLD" "$RESET"
+    printf '  %s4)%s Restore default configuration\n'        "$BOLD" "$RESET"
+    printf '  %s5)%s Exit\n'                                 "$BOLD" "$RESET"
     printf '%s----------------------------------------%s\n' "$BLUE" "$RESET"
 }
 
@@ -315,7 +394,7 @@ main() {
 
     while true; do
         show_menu
-        printf '%sChoose an option [1-4]: %s' "$BOLD" "$RESET"
+        printf '%sChoose an option [1-5]: %s' "$BOLD" "$RESET"
         if ! read -r choice; then
             printf '\n'
             info "Input closed - exiting."
@@ -327,9 +406,10 @@ main() {
             1) run_from_source; pause ;;
             2) compile_and_run; pause ;;
             3) clean_artifacts; pause ;;
-            4) info "Bye!"; exit 0 ;;
-            "") err "No option entered. Please type a number between 1 and 4." ;;
-            *) err "Invalid option: '$choice'. Please type a number between 1 and 4." ;;
+            4) restore_config_interactive; pause ;;
+            5) info "Bye!"; exit 0 ;;
+            "") err "No option entered. Please type a number between 1 and 5." ;;
+            *) err "Invalid option: '$choice'. Please type a number between 1 and 5." ;;
         esac
     done
 }

@@ -4,99 +4,67 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
+// Single entry point for bundled resources: classpath first, then disk walking up from the working dir.
 public final class ResourceLocator {
 
     private static final Logger LOG = Logger.getLogger(ResourceLocator.class.getName());
 
-    private static final List<String> RESOURCE_ROOTS = List.of(
-            "src/main/resources",
-            "resources",
-            "bin",
-            "");
+    // Relative roots probed at every level of the upward walk ("" = the level itself).
+    private static final List<String> ROOTS = List.of("src/main/resources", "resources", "bin", "");
 
     private ResourceLocator() { }
 
     public static InputStream openStream(String resourcePath) throws IOException {
-        return tryOpenStream(resourcePath)
-                .orElseThrow(() -> new IOException(
-                        "Resource not found: " + resourcePath
-                        + " (searched classpath and: "
-                        + String.join(", ", searchedLocations(resourcePath)) + ")"));
+        return tryOpenStream(resourcePath).orElseThrow(
+                () -> new IOException("Resource not found on classpath or disk: " + resourcePath));
     }
 
     public static Optional<InputStream> tryOpenStream(String resourcePath) {
-        InputStream classpath = ResourceLocator.class.getClassLoader()
-                .getResourceAsStream(resourcePath);
-        if (classpath != null) {
-            return Optional.of(classpath);
-        }
-        Optional<Path> onDisk = findOnFilesystem(resourcePath);
-        if (onDisk.isPresent()) {
-            Path file = onDisk.get();
-            try {
-                return Optional.of(Files.newInputStream(file));
-            } catch (IOException ex) {
-                LOG.warning(() -> "Failed to open " + file.toAbsolutePath()
-                        + ": " + ex.getMessage());
-            }
-        }
-        LOG.fine(() -> "Resource not found: " + resourcePath
-                + " (searched classpath and: "
-                + String.join(", ", searchedLocations(resourcePath)) + ")");
-        return Optional.empty();
+        InputStream classpath = ResourceLocator.class.getClassLoader().getResourceAsStream(resourcePath);
+        return classpath != null ? Optional.of(classpath) : find(resourcePath).flatMap(ResourceLocator::open);
     }
 
+    // Canonical way to read a bundled text resource.
+    public static String readString(String resourcePath) throws IOException {
+        try (InputStream in = openStream(resourcePath)) {
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    // Classpath URL when it points to a real file, otherwise the first match on disk.
     public static Optional<Path> find(String resourcePath) {
         URL url = ResourceLocator.class.getClassLoader().getResource(resourcePath);
         if (url != null && "file".equals(url.getProtocol())) {
             try {
-                Path path = Path.of(url.toURI());
-                return Optional.of(path);
+                return Optional.of(Path.of(url.toURI()));
             } catch (URISyntaxException ex) {
-                LOG.warning(() -> "Invalid classpath URL for " + resourcePath
-                        + ": " + ex.getMessage());
+                LOG.warning(() -> "Invalid classpath URL for " + resourcePath + ": " + ex.getMessage());
             }
         }
-        Optional<Path> onDisk = findOnFilesystem(resourcePath);
-        return onDisk;
+        return candidates(resourcePath).filter(Files::exists).findFirst();
     }
 
-    private static Optional<Path> findOnFilesystem(String resourcePath) {
-        for (Path dir = workingDir(); dir != null; dir = dir.getParent()) {
-            for (String root : RESOURCE_ROOTS) {
-                Path candidate = resolve(dir, root, resourcePath);
-                if (Files.exists(candidate)) {
-                    return Optional.of(candidate);
-                }
-            }
+    private static Stream<Path> candidates(String resourcePath) {
+        Path workingDir = Path.of(System.getProperty("user.dir")).toAbsolutePath();
+        return Stream.iterate(workingDir, p -> p != null, Path::getParent)
+                .flatMap(dir -> ROOTS.stream().map(root ->
+                        root.isEmpty() ? dir.resolve(resourcePath) : dir.resolve(root).resolve(resourcePath)));
+    }
+
+    private static Optional<InputStream> open(Path file) {
+        try {
+            return Optional.of(Files.newInputStream(file));
+        } catch (IOException ex) {
+            LOG.warning(() -> "Failed to open " + file + ": " + ex.getMessage());
+            return Optional.empty();
         }
-        return Optional.empty();
-    }
-
-    private static List<String> searchedLocations(String resourcePath) {
-        List<String> searched = new ArrayList<>();
-        for (Path dir = workingDir(); dir != null; dir = dir.getParent()) {
-            for (String root : RESOURCE_ROOTS) {
-                searched.add(resolve(dir, root, resourcePath).toString());
-            }
-        }
-        return searched;
-    }
-
-    private static Path resolve(Path dir, String root, String resourcePath) {
-        return root.isEmpty()
-                ? dir.resolve(resourcePath)
-                : dir.resolve(root).resolve(resourcePath);
-    }
-
-    private static Path workingDir() {
-        return Path.of(System.getProperty("user.dir")).toAbsolutePath();
     }
 }

@@ -11,7 +11,6 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -25,23 +24,29 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
+import com.diosaraiva.plantumlgui.service.PlantUmlFormat;
 import com.diosaraiva.plantumlgui.service.PlantUmlRenderer.CompileResult;
+import com.diosaraiva.plantumlgui.util.FileNames;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 
-public class PlantUmlOutputPanel extends JPanel {
+// Right-hand output: zoomable diagram preview plus the PlantUML console.
+@SuppressWarnings("serial")
+public final class PlantUmlOutputPanel extends JPanel {
 
-    private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final int PREVIEW_TAB = 0;
     private static final int CONSOLE_TAB = 1;
 
-    private static final String PNG_CARD = "png";
-    private static final String PUML_CARD = "puml";
-    private static final String MSG_CARD = "msg";
+    // CardLayout keys for the three possible preview contents.
+    private static final String IMAGE_CARD = "image";
+    private static final String TEXT_CARD = "text";
+    private static final String MESSAGE_CARD = "message";
 
     private static final double ZOOM_STEP = 0.1;
     private static final double ZOOM_MIN = 0.1;
     private static final double ZOOM_MAX = 5.0;
+    private static final int SCROLL_UNIT = 16;
 
     private final JTabbedPane tabs = new JTabbedPane();
 
@@ -49,25 +54,23 @@ public class PlantUmlOutputPanel extends JPanel {
     private final JPanel cardPanel = new JPanel(cards);
     private final ImagePanel imagePanel = new ImagePanel();
     private final JScrollPane imageScroll = new JScrollPane(imagePanel);
-    private final JTextArea pumlArea = new JTextArea();
-    private final JLabel msgLabel = new JLabel();
+    private final JTextArea textArea = new JTextArea();
+    private final JLabel messageLabel = new JLabel("", JLabel.CENTER);
     private final JLabel zoomLabel = new JLabel("100%");
 
-    private final JButton zoomInBtn = SwingUtils.createToolButton("+", I18n.get("preview.zoom.in"));
-    private final JButton zoomOutBtn = SwingUtils.createToolButton("\u2212", I18n.get("preview.zoom.out"));
-    private final JButton fitBtn = SwingUtils.createToolButton("Fit", I18n.get("preview.zoom.fit"));
-    private final JButton resetBtn = SwingUtils.createToolButton("1:1", I18n.get("preview.zoom.reset"));
+    private final JButton zoomInButton = SwingUtils.createToolButton("+", I18n.get("preview.zoom.in"));
+    private final JButton zoomOutButton = SwingUtils.createToolButton("\u2212", I18n.get("preview.zoom.out"));
+    private final JButton fitButton = SwingUtils.createToolButton("Fit", I18n.get("preview.zoom.fit"));
+    private final JButton resetButton = SwingUtils.createToolButton("1:1", I18n.get("preview.zoom.reset"));
 
     private final JTextArea consoleArea = new JTextArea();
-    private final JButton refreshButton;
-    private final JButton cleanButton;
+    private final JButton refreshButton =
+            SwingUtils.createToolButton(I18n.get("console.refresh"), I18n.get("console.refresh.tooltip"));
+    private final JButton cleanButton =
+            SwingUtils.createToolButton(I18n.get("console.clean"), I18n.get("console.clean.tooltip"));
 
     public PlantUmlOutputPanel(Runnable onConsoleRefresh) {
         super(new BorderLayout());
-        refreshButton = SwingUtils.createToolButton(
-                I18n.get("console.refresh"), I18n.get("console.refresh.tooltip"));
-        cleanButton = SwingUtils.createToolButton(
-                I18n.get("console.clean"), I18n.get("console.clean.tooltip"));
         refreshButton.addActionListener(e -> onConsoleRefresh.run());
         cleanButton.addActionListener(e -> clearConsole());
 
@@ -76,37 +79,124 @@ public class PlantUmlOutputPanel extends JPanel {
         add(tabs, BorderLayout.CENTER);
     }
 
+    public BufferedImage getCurrentImage() { return imagePanel.getImage(); }
+
+    public void showRendering() {
+        showMessage(I18n.get("plantuml.preview.rendering"));
+        setRefreshEnabled(false);
+    }
+
+    public void showMessage(String text) {
+        messageLabel.setText(text);
+        cards.show(cardPanel, MESSAGE_CARD);
+    }
+
+    // Shows the rendered image (when any) and always logs the compiler output.
+    public void showCompileResult(CompileResult result) {
+        try {
+            if (result.previewImage() != null && result.previewImage().isFile()) {
+                showImage(result.previewImage());
+            } else {
+                showMessage(I18n.get("plantuml.preview.noimage"));
+            }
+        } catch (IOException ex) {
+            showMessage(I18n.get("plantuml.preview.error", ex.getMessage()));
+        }
+        appendConsole(result.isSuccess()
+                        ? I18n.get("console.compile.ok", result.exitCode())
+                        : I18n.get("console.compile.fail", result.exitCode()),
+                result.output().isBlank() ? I18n.get("console.no.output") : result.output());
+        setRefreshEnabled(true);
+    }
+
+    public void showRenderError(Throwable ex) {
+        showMessage(I18n.get("plantuml.preview.error", ex.getMessage()));
+        appendConsole(I18n.get("console.compile.error"), String.valueOf(ex.getMessage()));
+        setRefreshEnabled(true);
+    }
+
+    // SVG cannot be painted directly, so an optional PNG rendered from the same source stands in.
+    public void showDiagram(File output, File preview) throws IOException {
+        PlantUmlFormat format = PlantUmlFormat.fromExtension(FileNames.extension(output.getName()))
+                .orElse(null);
+        if (format == null) {
+            showMessage(I18n.get("preview.unsupported", output.getName()));
+            return;
+        }
+        switch (format) {
+            case PNG -> showImage(output);
+            case PUML -> showText(output);
+            case SVG -> {
+                if (preview != null && preview.isFile()) {
+                    showImage(preview);
+                } else {
+                    showMessage(I18n.get("preview.created", output.getAbsolutePath()));
+                }
+            }
+            case ARCHIMATE -> showText(output);
+        }
+    }
+
+    public void selectConsole() {
+        tabs.setSelectedIndex(CONSOLE_TAB);
+    }
+
+    public void appendConsole(String header, String body) {
+        SwingUtilities.invokeLater(() -> {
+            var sb = new StringBuilder("[").append(LocalTime.now().format(TIMESTAMP)).append("] ")
+                    .append(header).append(System.lineSeparator());
+            if (body != null && !body.isBlank()) {
+                sb.append(body.strip()).append(System.lineSeparator());
+            }
+            consoleArea.append(sb.append(System.lineSeparator()).toString());
+            consoleArea.setCaretPosition(consoleArea.getDocument().getLength());
+        });
+    }
+
+    public void applyLanguage() {
+        tabs.setTitleAt(PREVIEW_TAB, I18n.get("tab.preview"));
+        tabs.setTitleAt(CONSOLE_TAB, I18n.get("tab.console"));
+        zoomInButton.setToolTipText(I18n.get("preview.zoom.in"));
+        zoomOutButton.setToolTipText(I18n.get("preview.zoom.out"));
+        fitButton.setToolTipText(I18n.get("preview.zoom.fit"));
+        resetButton.setToolTipText(I18n.get("preview.zoom.reset"));
+        refreshButton.setText(I18n.get("console.refresh"));
+        refreshButton.setToolTipText(I18n.get("console.refresh.tooltip"));
+        cleanButton.setText(I18n.get("console.clean"));
+        cleanButton.setToolTipText(I18n.get("console.clean.tooltip"));
+        repaint();
+    }
+
     private JPanel buildPreviewTab() {
-        var zoomBar = SwingUtils.createToolBar();
         zoomLabel.setFont(zoomLabel.getFont().deriveFont(Font.PLAIN, 11f));
-        zoomBar.add(zoomOutBtn);
+        zoomInButton.addActionListener(e -> zoomBy(ZOOM_STEP));
+        zoomOutButton.addActionListener(e -> zoomBy(-ZOOM_STEP));
+        resetButton.addActionListener(e -> setZoom(1.0));
+        fitButton.addActionListener(e -> fitToWindow());
+
+        var zoomBar = SwingUtils.createToolBar();
+        zoomBar.add(zoomOutButton);
         zoomBar.add(zoomLabel);
-        zoomBar.add(zoomInBtn);
-        zoomBar.add(fitBtn);
-        zoomBar.add(resetBtn);
+        zoomBar.add(zoomInButton);
+        zoomBar.add(fitButton);
+        zoomBar.add(resetButton);
 
-        zoomInBtn.addActionListener(e -> zoom(ZOOM_STEP));
-        zoomOutBtn.addActionListener(e -> zoom(-ZOOM_STEP));
-        resetBtn.addActionListener(e -> setZoom(1.0));
-        fitBtn.addActionListener(e -> fitToWindow());
-
+        // Ctrl/Cmd + wheel zooms; a plain wheel keeps scrolling.
         imageScroll.addMouseWheelListener(e -> {
             if (e.isControlDown() || e.isMetaDown()) {
                 e.consume();
-                double delta = e.getWheelRotation() < 0 ? ZOOM_STEP : -ZOOM_STEP;
-                zoom(delta);
+                zoomBy(e.getWheelRotation() < 0 ? ZOOM_STEP : -ZOOM_STEP);
             }
         });
-        imageScroll.getVerticalScrollBar().setUnitIncrement(16);
-        imageScroll.getHorizontalScrollBar().setUnitIncrement(16);
-        cardPanel.add(imageScroll, PNG_CARD);
+        imageScroll.getVerticalScrollBar().setUnitIncrement(SCROLL_UNIT);
+        imageScroll.getHorizontalScrollBar().setUnitIncrement(SCROLL_UNIT);
 
-        pumlArea.setEditable(false);
-        pumlArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
-        cardPanel.add(new JScrollPane(pumlArea), PUML_CARD);
+        textArea.setEditable(false);
+        textArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
 
-        msgLabel.setHorizontalAlignment(JLabel.CENTER);
-        cardPanel.add(msgLabel, MSG_CARD);
+        cardPanel.add(imageScroll, IMAGE_CARD);
+        cardPanel.add(new JScrollPane(textArea), TEXT_CARD);
+        cardPanel.add(messageLabel, MESSAGE_CARD);
 
         var panel = new JPanel(new BorderLayout());
         panel.add(cardPanel, BorderLayout.CENTER);
@@ -130,74 +220,15 @@ public class PlantUmlOutputPanel extends JPanel {
         return panel;
     }
 
-    public void showRendering() {
-        showMessage(I18n.get("plantuml.preview.rendering"));
-        setRefreshEnabled(false);
-    }
-
-    public void showMessage(String text) {
-        msgLabel.setText(text);
-        cards.show(cardPanel, MSG_CARD);
-    }
-
-    public void showCompileResult(CompileResult result) {
-        var image = result.previewImage();
-        try {
-            if (image != null && image.isFile()) {
-                showDiagram(image);
-            } else {
-                showMessage(I18n.get("plantuml.preview.noimage"));
-            }
-        } catch (IOException ex) {
-            showMessage(I18n.get("plantuml.preview.error", ex.getMessage()));
-        }
-        var header = result.isSuccess()
-                ? I18n.get("console.compile.ok", result.exitCode())
-                : I18n.get("console.compile.fail", result.exitCode());
-        var body = result.output().isBlank() ? I18n.get("console.no.output") : result.output();
-        appendConsole(header, body);
-        setRefreshEnabled(true);
-    }
-
-    public void showRenderError(Throwable ex) {
-        showMessage(I18n.get("plantuml.preview.error", ex.getMessage()));
-        appendConsole(I18n.get("console.compile.error"), String.valueOf(ex.getMessage()));
-        setRefreshEnabled(true);
-    }
-
-    public void showDiagram(File file) throws IOException {
-        showDiagram(file, null);
-    }
-
-    public void showDiagram(File output, File preview) throws IOException {
-        String name = output.getName().toLowerCase();
-        if (name.endsWith(".svg")) {
-            if (preview != null && preview.isFile()) {
-                showPng(preview);
-            } else {
-                showMessage("SVG created: " + output.getAbsolutePath());
-            }
-        } else if (name.endsWith(".png")) {
-            showPng(output);
-        } else if (name.endsWith(".puml")) {
-            showPuml(output);
-        } else {
-            showMessage("Unsupported format: " + name);
-        }
-    }
-
-    public BufferedImage getCurrentImage() {
-        return imagePanel.getImage();
-    }
-
-    private void showPng(File file) throws IOException {
-        BufferedImage img = ImageIO.read(file);
-        if (img == null) {
-            showMessage("Could not load image: " + file.getName());
+    private void showImage(File file) throws IOException {
+        BufferedImage image = ImageIO.read(file);
+        if (image == null) {
+            showMessage(I18n.get("preview.unreadable", file.getName()));
             return;
         }
-        imagePanel.setImage(img);
-        cards.show(cardPanel, PNG_CARD);
+        imagePanel.setImage(image);
+        cards.show(cardPanel, IMAGE_CARD);
+        // Viewport size is only known after layout, so fit on the next EDT pass.
         SwingUtilities.invokeLater(() -> {
             fitToWindow();
             imageScroll.getVerticalScrollBar().setValue(0);
@@ -205,51 +236,31 @@ public class PlantUmlOutputPanel extends JPanel {
         });
     }
 
-    private void showPuml(File file) throws IOException {
-        String puml = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-        pumlArea.setText(puml);
-        pumlArea.setCaretPosition(0);
-        cards.show(cardPanel, PUML_CARD);
+    private void showText(File file) throws IOException {
+        textArea.setText(Files.readString(file.toPath()));
+        textArea.setCaretPosition(0);
+        cards.show(cardPanel, TEXT_CARD);
     }
 
-    private void zoom(double delta) {
+    private void zoomBy(double delta) {
         setZoom(imagePanel.getScale() + delta);
     }
 
     private void setZoom(double scale) {
-        scale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, scale));
-        imagePanel.setScale(scale);
-        zoomLabel.setText(Math.round(scale * 100) + "%");
-        imagePanel.revalidate();
+        double clamped = Math.clamp(scale, ZOOM_MIN, ZOOM_MAX);
+        imagePanel.setScale(clamped);
+        zoomLabel.setText(Math.round(clamped * 100) + "%");
         imageScroll.repaint();
     }
 
     private void fitToWindow() {
-        BufferedImage img = imagePanel.getImage();
-        if (img == null) return;
-        int vpW = imageScroll.getViewport().getWidth();
-        int vpH = imageScroll.getViewport().getHeight();
-        if (vpW <= 0 || vpH <= 0) return;
-        double scaleX = (double) vpW / img.getWidth();
-        double scaleY = (double) vpH / img.getHeight();
-        setZoom(Math.min(scaleX, scaleY));
-    }
-
-    public void selectConsole() {
-        tabs.setSelectedIndex(CONSOLE_TAB);
-    }
-
-    public void appendConsole(String header, String body) {
-        SwingUtilities.invokeLater(() -> {
-            var sb = new StringBuilder("[").append(LocalTime.now().format(TS)).append("] ")
-                    .append(header).append(System.lineSeparator());
-            if (body != null && !body.isBlank()) {
-                sb.append(body.strip()).append(System.lineSeparator());
-            }
-            sb.append(System.lineSeparator());
-            consoleArea.append(sb.toString());
-            consoleArea.setCaretPosition(consoleArea.getDocument().getLength());
-        });
+        BufferedImage image = imagePanel.getImage();
+        int width = imageScroll.getViewport().getWidth();
+        int height = imageScroll.getViewport().getHeight();
+        if (image == null || width <= 0 || height <= 0) {
+            return;
+        }
+        setZoom(Math.min((double) width / image.getWidth(), (double) height / image.getHeight()));
     }
 
     private void setRefreshEnabled(boolean enabled) {
@@ -260,21 +271,11 @@ public class PlantUmlOutputPanel extends JPanel {
         SwingUtilities.invokeLater(() -> consoleArea.setText(""));
     }
 
-    public void applyLanguage() {
-        tabs.setTitleAt(PREVIEW_TAB, I18n.get("tab.preview"));
-        tabs.setTitleAt(CONSOLE_TAB, I18n.get("tab.console"));
-        zoomInBtn.setToolTipText(I18n.get("preview.zoom.in"));
-        zoomOutBtn.setToolTipText(I18n.get("preview.zoom.out"));
-        fitBtn.setToolTipText(I18n.get("preview.zoom.fit"));
-        resetBtn.setToolTipText(I18n.get("preview.zoom.reset"));
-        refreshButton.setText(I18n.get("console.refresh"));
-        refreshButton.setToolTipText(I18n.get("console.refresh.tooltip"));
-        cleanButton.setText(I18n.get("console.clean"));
-        cleanButton.setToolTipText(I18n.get("console.clean.tooltip"));
-        repaint();
-    }
+    // Draws a scaled image centred in the viewport.
+    @SuppressWarnings("serial")
+    private static final class ImagePanel extends JPanel {
 
-    private static class ImagePanel extends JPanel {
+        private static final Dimension EMPTY_SIZE = new Dimension(100, 100);
 
         private BufferedImage image;
         private double scale = 1.0;
@@ -283,14 +284,12 @@ public class PlantUmlOutputPanel extends JPanel {
             setBackground(Color.WHITE);
         }
 
+        BufferedImage getImage() { return image; }
+
         void setImage(BufferedImage image) {
             this.image = image;
-            this.scale = 1.0;
-            revalidate();
-            repaint();
+            setScale(1.0);
         }
-
-        BufferedImage getImage() { return image; }
 
         double getScale() { return scale; }
 
@@ -303,32 +302,29 @@ public class PlantUmlOutputPanel extends JPanel {
         @Override
         public Dimension getPreferredSize() {
             if (image == null) {
-                return new Dimension(100, 100);
+                return EMPTY_SIZE;
             }
-            int w = (int) Math.ceil(image.getWidth() * scale);
-            int h = (int) Math.ceil(image.getHeight() * scale);
-            return new Dimension(w, h);
+            return new Dimension((int) Math.ceil(image.getWidth() * scale),
+                    (int) Math.ceil(image.getHeight() * scale));
         }
 
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-            if (image == null) return;
-
+            if (image == null) {
+                return;
+            }
+            Dimension size = getPreferredSize();
             Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                    RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g2.setRenderingHint(RenderingHints.KEY_RENDERING,
-                    RenderingHints.VALUE_RENDER_QUALITY);
-
-            int w = (int) Math.ceil(image.getWidth() * scale);
-            int h = (int) Math.ceil(image.getHeight() * scale);
-
-            int x = Math.max(0, (getWidth() - w) / 2);
-            int y = Math.max(0, (getHeight() - h) / 2);
-
-            g2.drawImage(image, x, y, w, h, null);
-            g2.dispose();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                        RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                g2.drawImage(image, Math.max(0, (getWidth() - size.width) / 2),
+                        Math.max(0, (getHeight() - size.height) / 2), size.width, size.height, null);
+            } finally {
+                g2.dispose();
+            }
         }
     }
 }

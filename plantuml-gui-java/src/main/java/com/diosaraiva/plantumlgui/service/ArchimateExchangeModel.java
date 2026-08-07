@@ -21,25 +21,16 @@ import javax.xml.transform.stream.StreamResult;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
+// Builds an Archi-compatible ArchiMate model DOM and serialises it; layer keys match ArchimatePlantUmlConverter.
 public final class ArchimateExchangeModel {
 
     private static final String ARCHIMATE_NS = "http://www.archimatetool.com/archimate";
     private static final String XSI_NS = "http://www.w3.org/2001/XMLSchema-instance";
+    private static final String OTHER_LAYER = "other";
 
-    private static final class FolderDef {
-        private final String type;
-        private final String displayName;
+    private record FolderDef(String type, String displayName) { }
 
-        FolderDef(String type, String displayName) {
-            this.type = type;
-            this.displayName = displayName;
-        }
-
-        String type() { return type; }
-
-        String displayName() { return displayName; }
-    }
-
+    // Folder per layer, in the order Archi expects them.
     private static final Map<String, FolderDef> LAYER_FOLDERS = new LinkedHashMap<>();
     static {
         LAYER_FOLDERS.put("strategy", new FolderDef("strategy", "Strategy"));
@@ -47,9 +38,8 @@ public final class ArchimateExchangeModel {
         LAYER_FOLDERS.put("application", new FolderDef("application", "Application"));
         LAYER_FOLDERS.put("technology", new FolderDef("technology", "Technology"));
         LAYER_FOLDERS.put("motivation", new FolderDef("motivation", "Motivation"));
-        LAYER_FOLDERS.put("implementation",
-                new FolderDef("implementation_migration", "Implementation & Migration"));
-        LAYER_FOLDERS.put("other", new FolderDef("other", "Other"));
+        LAYER_FOLDERS.put("implementation", new FolderDef("implementation_migration", "Implementation & Migration"));
+        LAYER_FOLDERS.put(OTHER_LAYER, new FolderDef(OTHER_LAYER, "Other"));
     }
 
     private final Document document;
@@ -61,15 +51,7 @@ public final class ArchimateExchangeModel {
     private int relationshipCount;
 
     public ArchimateExchangeModel(String modelName) {
-        try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
-            this.document = factory.newDocumentBuilder().newDocument();
-        } catch (ParserConfigurationException ex) {
-            throw new IllegalStateException("Unable to create XML document builder", ex);
-        }
-        this.document.setXmlStandalone(true);
-
+        this.document = newDocument();
         this.root = document.createElementNS(ARCHIMATE_NS, "archimate:model");
         root.setAttribute("xmlns:xsi", XSI_NS);
         root.setAttribute("xmlns:archimate", ARCHIMATE_NS);
@@ -78,35 +60,23 @@ public final class ArchimateExchangeModel {
         root.setAttribute("version", "5.0.0");
         document.appendChild(root);
 
-        for (var entry : LAYER_FOLDERS.entrySet()) {
-            foldersByLayer.put(entry.getKey(), createFolder(entry.getValue()));
-        }
+        LAYER_FOLDERS.forEach((layer, def) -> foldersByLayer.put(layer, createFolder(def)));
         this.relationsFolder = createFolder(new FolderDef("relations", "Relations"));
         createFolder(new FolderDef("diagrams", "Views"));
     }
 
     public void addElement(String type, String id, String name, String layer) {
-        Element parent = foldersByLayer.getOrDefault(normalizeLayer(layer),
-                foldersByLayer.get("other"));
-        Element element = document.createElement("element");
-        element.setAttributeNS(XSI_NS, "xsi:type", "archimate:" + type);
+        Element element = newTypedElement(type, id);
         element.setAttribute("name", name == null ? "" : name);
-        element.setAttribute("id", id);
-        parent.appendChild(element);
+        foldersByLayer.getOrDefault(normalizeLayer(layer), foldersByLayer.get(OTHER_LAYER)).appendChild(element);
         elementCount++;
     }
 
-    public void addRelationship(String type, String id, String source, String target) {
-        addRelationship(type, id, source, target, null);
-    }
-
     public void addRelationship(String type, String id, String source, String target, String name) {
-        Element rel = document.createElement("element");
-        rel.setAttributeNS(XSI_NS, "xsi:type", "archimate:" + type);
+        Element rel = newTypedElement(type, id);
         if (name != null && !name.isBlank()) {
             rel.setAttribute("name", name);
         }
-        rel.setAttribute("id", id);
         rel.setAttribute("source", source);
         rel.setAttribute("target", target);
         relationsFolder.appendChild(rel);
@@ -118,9 +88,8 @@ public final class ArchimateExchangeModel {
     public int getRelationshipCount() { return relationshipCount; }
 
     public void writeTo(File outputFile) throws IOException {
-        if (outputFile.getParentFile() != null && !outputFile.getParentFile().exists()) {
-            Files.createDirectories(outputFile.getParentFile().toPath());
-        }
+        File parent = outputFile.getAbsoluteFile().getParentFile();
+        Files.createDirectories(parent.toPath());
         try (Writer writer = Files.newBufferedWriter(outputFile.toPath(), StandardCharsets.UTF_8)) {
             writeTo(writer);
         }
@@ -134,6 +103,18 @@ public final class ArchimateExchangeModel {
         }
     }
 
+    public static String newId() {
+        return "id-" + UUID.randomUUID().toString().replace("-", "");
+    }
+
+    // Elements and relationships share the same <element xsi:type="archimate:X"> shape.
+    private Element newTypedElement(String type, String id) {
+        Element element = document.createElement("element");
+        element.setAttributeNS(XSI_NS, "xsi:type", "archimate:" + type);
+        element.setAttribute("id", id);
+        return element;
+    }
+
     private Element createFolder(FolderDef def) {
         Element folder = document.createElement("folder");
         folder.setAttribute("name", def.displayName());
@@ -144,18 +125,24 @@ public final class ArchimateExchangeModel {
     }
 
     private static String normalizeLayer(String layer) {
-        if (layer == null) return "other";
-        String key = layer.trim().toLowerCase();
-        return LAYER_FOLDERS.containsKey(key) ? key : "other";
+        String key = layer == null ? "" : layer.strip().toLowerCase();
+        return LAYER_FOLDERS.containsKey(key) ? key : OTHER_LAYER;
     }
 
-    public static String newId() {
-        return "id-" + UUID.randomUUID().toString().replace("-", "");
+    private static Document newDocument() {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            Document document = factory.newDocumentBuilder().newDocument();
+            document.setXmlStandalone(true);
+            return document;
+        } catch (ParserConfigurationException ex) {
+            throw new IllegalStateException("Unable to create XML document builder", ex);
+        }
     }
 
     private static Transformer newTransformer() throws TransformerException {
-        TransformerFactory factory = TransformerFactory.newInstance();
-        Transformer transformer = factory.newTransformer();
+        Transformer transformer = TransformerFactory.newInstance().newTransformer();
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
         transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
         transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");

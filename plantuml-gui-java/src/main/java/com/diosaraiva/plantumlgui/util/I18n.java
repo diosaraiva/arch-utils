@@ -5,11 +5,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+// UTF-8 message bundles under resources/i18n; every user-visible string goes through I18n.get.
 public final class I18n {
 
     private static final Logger LOG = Logger.getLogger(I18n.class.getName());
@@ -17,9 +20,9 @@ public final class I18n {
     private static final String BUNDLE_DIR = "i18n";
     private static final String BUNDLE_BASE = "messages";
 
-    public static final Locale EN_US = new Locale("en", "US");
-    public static final Locale PT_BR = new Locale("pt", "BR");
-    public static final Locale ES_ES = new Locale("es", "ES");
+    public static final Locale EN_US = Locale.of("en", "US");
+    public static final Locale PT_BR = Locale.of("pt", "BR");
+    public static final Locale ES_ES = Locale.of("es", "ES");
 
     private static Locale current = EN_US;
     private static Properties messages = load(current);
@@ -33,40 +36,35 @@ public final class I18n {
         messages = load(current);
     }
 
+    // Missing keys surface as !key! instead of throwing, so the UI never breaks on a typo.
     public static String get(String key) {
-        var value = messages.getProperty(key);
-        return value != null ? value : "!" + key + "!";
+        return messages.getProperty(key, "!" + key + "!");
     }
 
     public static String get(String key, Object... args) {
-        return java.text.MessageFormat.format(get(key), args);
+        return MessageFormat.format(get(key), args);
     }
 
+    // Most specific bundle wins: messages_ll_CC -> messages_ll -> messages.
     private static Properties load(Locale locale) {
         var props = new Properties();
-        for (var name : candidateFileNames(locale)) {
+        for (String name : candidateFileNames(locale)) {
             if (loadInto(props, BUNDLE_DIR + "/" + name)) {
                 return props;
             }
         }
-        LOG.warning(() -> "I18n: no messages file found on classpath or disk for locale " + locale);
+        LOG.warning(() -> "I18n: no messages file found for locale " + locale);
         return props;
     }
 
-    private static String[] candidateFileNames(Locale locale) {
-        var lang = locale.getLanguage();
-        var country = locale.getCountry();
-        if (!country.isEmpty()) {
-            return new String[] {
-                    BUNDLE_BASE + "_" + lang + "_" + country + ".properties",
-                    BUNDLE_BASE + "_" + lang + ".properties",
-                    BUNDLE_BASE + ".properties",
-            };
-        }
-        return new String[] {
-                BUNDLE_BASE + "_" + lang + ".properties",
-                BUNDLE_BASE + ".properties",
-        };
+    private static List<String> candidateFileNames(Locale locale) {
+        String lang = locale.getLanguage();
+        String country = locale.getCountry();
+        String base = BUNDLE_BASE + "_" + lang;
+        return country.isEmpty()
+                ? List.of(base + ".properties", BUNDLE_BASE + ".properties")
+                : List.of(base + "_" + country + ".properties", base + ".properties",
+                        BUNDLE_BASE + ".properties");
     }
 
     private static boolean loadInto(Properties props, String relativePath) {
@@ -79,8 +77,7 @@ public final class I18n {
             props.load(reader);
             return true;
         } catch (IOException ex) {
-            LOG.warning(() -> "I18n: failed to read " + relativePath
-                    + " (" + ex.getMessage() + ")");
+            LOG.warning(() -> "I18n: failed to read " + relativePath + " (" + ex.getMessage() + ")");
             return false;
         }
     }

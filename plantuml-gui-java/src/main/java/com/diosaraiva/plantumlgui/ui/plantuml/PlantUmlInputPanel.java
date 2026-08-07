@@ -24,35 +24,39 @@ import javax.swing.ListSelectionModel;
 import javax.swing.event.DocumentListener;
 import javax.swing.undo.UndoManager;
 
+import com.diosaraiva.plantumlgui.service.AppSettings;
 import com.diosaraiva.plantumlgui.service.SampleLoader;
 import com.diosaraiva.plantumlgui.util.I18n;
 import com.diosaraiva.plantumlgui.util.SwingUtils;
 import com.diosaraiva.plantumlgui.util.TextLineNumber;
 
-public class PlantUmlInputPanel extends JPanel {
+// Left-hand input: the code editor, the sample gallery and the auto-preview controls.
+@SuppressWarnings("serial")
+public final class PlantUmlInputPanel extends JPanel {
 
+    private static final int CODE_TAB = 0;
+    private static final int SAMPLES_TAB = 1;
+    private static final Font EDITOR_FONT = new Font(Font.MONOSPACED, Font.PLAIN, 13);
+    private static final float SMALL_FONT = 11f;
+
+    private final JTabbedPane inputTabs = new JTabbedPane();
+    private final JTextArea codeTextArea = new JTextArea(10, 20);
     private final JList<DiagramSample> sampleList = new JList<>(DiagramSample.values());
-    private final JTextArea codeTextArea;
-    private final JLabel countLabel = new JLabel();
-    private final JCheckBox autoPreviewCheck = new JCheckBox(I18n.get("input.autoPreview"), true);
+    private final JLabel countLabel = new JLabel("", JLabel.RIGHT);
+    private final JCheckBox autoPreviewCheck = new JCheckBox(I18n.get("input.autoPreview"),
+            AppSettings.getBoolean(AppSettings.AUTO_PREVIEW, true));
     private final JButton previewButton = new JButton(I18n.get("input.preview"));
+    private final JPanel controlsBar = new JPanel(new BorderLayout(8, 0));
+
     private final UndoManager undoManager = new UndoManager();
     private final List<Runnable> undoStateListeners = new ArrayList<>();
 
-    private final JTabbedPane inputTabs = new JTabbedPane();
-    private JScrollPane editorScroll;
-    private JPanel controlsBar;
-
     public PlantUmlInputPanel() {
-        codeTextArea = new JTextArea(10, 20);
-        codeTextArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
-        initComponents();
-    }
-
-    private void initComponents() {
+        codeTextArea.setFont(EDITOR_FONT);
         codeTextArea.setLineWrap(true);
         codeTextArea.setWrapStyleWord(false);
-        editorScroll = new JScrollPane(codeTextArea);
+
+        var editorScroll = new JScrollPane(codeTextArea);
         editorScroll.setRowHeaderView(new TextLineNumber(codeTextArea));
 
         sampleList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -63,98 +67,23 @@ public class PlantUmlInputPanel extends JPanel {
         inputTabs.addTab(I18n.get("input.tab.code"), editorScroll);
         inputTabs.addTab(I18n.get("input.tab.samples"), new JScrollPane(sampleList));
 
-        controlsBar = createBottomBar();
-
+        buildControlsBar();
         initUndo();
-        initCountLabel();
+
+        codeTextArea.getDocument().addDocumentListener(SwingUtils.onDocumentChange(this::updateCounts));
+        updateCounts();
 
         sampleList.setSelectedValue(DiagramSample.SEQUENCE, true);
-        inputTabs.setSelectedIndex(0);
+        inputTabs.setSelectedIndex(CODE_TAB);
     }
 
     public JComponent getEditorComponent() { return inputTabs; }
 
     public JComponent getControlsComponent() { return controlsBar; }
 
-    private JPanel createBottomBar() {
-        JPanel bar = new JPanel(new BorderLayout(8, 0));
-
-        autoPreviewCheck.setFont(autoPreviewCheck.getFont().deriveFont(Font.PLAIN, 11f));
-        autoPreviewCheck.addActionListener(e -> updatePreviewButtonState());
-        bar.add(autoPreviewCheck, BorderLayout.WEST);
-
-        countLabel.setFont(countLabel.getFont().deriveFont(Font.PLAIN, 10f));
-        countLabel.setHorizontalAlignment(JLabel.RIGHT);
-        bar.add(countLabel, BorderLayout.CENTER);
-
-        previewButton.setFont(previewButton.getFont().deriveFont(Font.PLAIN, 11f));
-        bar.add(previewButton, BorderLayout.EAST);
-
-        updatePreviewButtonState();
-        return bar;
-    }
-
-    private void updatePreviewButtonState() {
-        previewButton.setEnabled(!autoPreviewCheck.isSelected());
-    }
-
-    private void initCountLabel() {
-        codeTextArea.getDocument().addDocumentListener(SwingUtils.onDocumentChange(this::updateCounts));
-        updateCounts();
-    }
-
-    private void updateCounts() {
-        int chars = codeTextArea.getDocument().getLength();
-        int lines = codeTextArea.getLineCount();
-        countLabel.setText(I18n.get("input.counts", chars, lines));
-    }
-
-    public void applyLanguage() {
-        inputTabs.setTitleAt(0, I18n.get("input.tab.code"));
-        inputTabs.setTitleAt(1, I18n.get("input.tab.samples"));
-        autoPreviewCheck.setText(I18n.get("input.autoPreview"));
-        previewButton.setText(I18n.get("input.preview"));
-        updateCounts();
-        repaint();
-    }
-
-    private void initUndo() {
-        codeTextArea.getDocument().addUndoableEditListener(e -> {
-            undoManager.addEdit(e.getEdit());
-            fireUndoStateChanged();
-        });
-
-        int mod = SwingUtils.menuShortcut();
-        bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_Z, mod), "archutils-undo", this::undo);
-        bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_Y, mod), "archutils-redo", this::redo);
-        bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_Z, mod | InputEvent.SHIFT_DOWN_MASK),
-                "archutils-redo", this::redo);
-    }
-
-    private void bindKey(KeyStroke stroke, String actionKey, Runnable action) {
-        codeTextArea.getInputMap().put(stroke, actionKey);
-        codeTextArea.getActionMap().put(actionKey, new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent e) { action.run(); }
-        });
-    }
-
-    private void loadSample() {
-        DiagramSample sample = sampleList.getSelectedValue();
-        if (sample == null) { return; }
-        try {
-            codeTextArea.setText(SampleLoader.load(sample.getFileName()));
-            codeTextArea.setCaretPosition(0);
-        } catch (Exception ex) {
-            codeTextArea.setText("Error loading sample: " + ex.getMessage());
-        }
-
-        inputTabs.setSelectedIndex(0);
-        undoManager.discardAllEdits();
-        fireUndoStateChanged();
-    }
-
     public String getCode() { return codeTextArea.getText().trim(); }
 
+    // Replaces the buffer and resets history; used by File > Open and the sample gallery.
     public void setCode(String code) {
         codeTextArea.setText(code);
         codeTextArea.setCaretPosition(0);
@@ -166,9 +95,7 @@ public class PlantUmlInputPanel extends JPanel {
         codeTextArea.getDocument().addDocumentListener(listener);
     }
 
-    public boolean isAutoPreviewEnabled() {
-        return autoPreviewCheck.isSelected();
-    }
+    public boolean isAutoPreviewEnabled() { return autoPreviewCheck.isSelected(); }
 
     public void addPreviewButtonListener(ActionListener listener) {
         previewButton.addActionListener(listener);
@@ -183,31 +110,25 @@ public class PlantUmlInputPanel extends JPanel {
     public boolean canRedo() { return undoManager.canRedo(); }
 
     public void undo() {
-        if (undoManager.canUndo()) {
-            undoManager.undo();
-        }
+        if (undoManager.canUndo()) { undoManager.undo(); }
         fireUndoStateChanged();
     }
 
     public void redo() {
-        if (undoManager.canRedo()) {
-            undoManager.redo();
-        }
+        if (undoManager.canRedo()) { undoManager.redo(); }
         fireUndoStateChanged();
     }
 
+    // Copies the selection, or the whole buffer when nothing is selected.
     public void copyToClipboard() {
         String selected = codeTextArea.getSelectedText();
-        SwingUtils.copyText((selected != null && !selected.isEmpty())
-                ? selected : codeTextArea.getText());
+        SwingUtils.copyText(selected == null || selected.isEmpty() ? codeTextArea.getText() : selected);
     }
 
-    public void paste() {
-        codeTextArea.paste();
-    }
+    public void paste() { codeTextArea.paste(); }
 
     public void selectAll() {
-        inputTabs.setSelectedIndex(0);
+        inputTabs.setSelectedIndex(CODE_TAB);
         codeTextArea.requestFocusInWindow();
         codeTextArea.selectAll();
     }
@@ -216,12 +137,76 @@ public class PlantUmlInputPanel extends JPanel {
         undoStateListeners.add(listener);
     }
 
-    private void fireUndoStateChanged() {
-        for (Runnable r : undoStateListeners) {
-            r.run();
-        }
+    public void applyLanguage() {
+        inputTabs.setTitleAt(CODE_TAB, I18n.get("input.tab.code"));
+        inputTabs.setTitleAt(SAMPLES_TAB, I18n.get("input.tab.samples"));
+        autoPreviewCheck.setText(I18n.get("input.autoPreview"));
+        previewButton.setText(I18n.get("input.preview"));
+        updateCounts();
+        repaint();
     }
 
+    private void buildControlsBar() {
+        autoPreviewCheck.setFont(autoPreviewCheck.getFont().deriveFont(Font.PLAIN, SMALL_FONT));
+        autoPreviewCheck.addActionListener(e -> {
+            AppSettings.set(AppSettings.AUTO_PREVIEW, autoPreviewCheck.isSelected());
+            updatePreviewButtonState();
+        });
+        countLabel.setFont(countLabel.getFont().deriveFont(Font.PLAIN, 10f));
+        previewButton.setFont(previewButton.getFont().deriveFont(Font.PLAIN, SMALL_FONT));
+
+        controlsBar.add(autoPreviewCheck, BorderLayout.WEST);
+        controlsBar.add(countLabel, BorderLayout.CENTER);
+        controlsBar.add(previewButton, BorderLayout.EAST);
+        updatePreviewButtonState();
+    }
+
+    // Manual rendering only makes sense while auto preview is off.
+    private void updatePreviewButtonState() {
+        previewButton.setEnabled(!autoPreviewCheck.isSelected());
+    }
+
+    private void updateCounts() {
+        countLabel.setText(I18n.get("input.counts",
+                codeTextArea.getDocument().getLength(), codeTextArea.getLineCount()));
+    }
+
+    private void initUndo() {
+        codeTextArea.getDocument().addUndoableEditListener(e -> {
+            undoManager.addEdit(e.getEdit());
+            fireUndoStateChanged();
+        });
+        int mod = SwingUtils.menuShortcut();
+        bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_Z, mod), "undo", this::undo);
+        bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_Y, mod), "redo", this::redo);
+        bindKey(KeyStroke.getKeyStroke(KeyEvent.VK_Z, mod | InputEvent.SHIFT_DOWN_MASK), "redo", this::redo);
+    }
+
+    private void bindKey(KeyStroke stroke, String actionKey, Runnable action) {
+        codeTextArea.getInputMap().put(stroke, actionKey);
+        codeTextArea.getActionMap().put(actionKey, new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) { action.run(); }
+        });
+    }
+
+    private void loadSample() {
+        DiagramSample sample = sampleList.getSelectedValue();
+        if (sample == null) {
+            return;
+        }
+        try {
+            setCode(SampleLoader.load(sample.fileName()));
+        } catch (Exception ex) {
+            setCode(I18n.get("sample.load.failed", ex.getMessage()));
+        }
+        inputTabs.setSelectedIndex(CODE_TAB);
+    }
+
+    private void fireUndoStateChanged() {
+        undoStateListeners.forEach(Runnable::run);
+    }
+
+    // Gallery entries; the file name resolves under resources/plantuml/samples.
     public enum DiagramSample {
         ACTIVITY("Activity", "activity.puml"),
         ARCHIMATE_APPLICATION("Archimate Application", "archimate_application.puml"),
@@ -267,7 +252,7 @@ public class PlantUmlInputPanel extends JPanel {
             this.fileName = fileName;
         }
 
-        public String getFileName() { return fileName; }
+        public String fileName() { return fileName; }
 
         @Override public String toString() { return displayName; }
     }

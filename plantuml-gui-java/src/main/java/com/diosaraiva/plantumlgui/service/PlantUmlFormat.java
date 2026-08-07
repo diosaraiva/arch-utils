@@ -1,35 +1,47 @@
 package com.diosaraiva.plantumlgui.service;
 
 import java.util.Optional;
+import java.util.stream.Stream;
 
+import com.diosaraiva.plantumlgui.util.I18n;
+
+// Catalogue of export formats: the only place an extension, CLI flag or format label is defined.
 public enum PlantUmlFormat {
 
-    PNG("png", true),
-    SVG("svg", true),
-    PUML("puml", false);
+    PNG("png", true, null),
+    SVG("svg", true, null),
+    PUML("puml", false, null),
+    ARCHIMATE("xml", false, "format.archimate");
 
     private final String extension;
     private final boolean needsJar;
+    private final String labelKey;
 
-    PlantUmlFormat(String extension, boolean needsJar) {
+    PlantUmlFormat(String extension, boolean needsJar, String labelKey) {
         this.extension = extension;
         this.needsJar = needsJar;
+        this.labelKey = labelKey;
     }
 
     public String extension() { return extension; }
 
+    // False when the format is produced by this app rather than by the PlantUML JAR.
     public boolean needsJar() { return needsJar; }
 
     public String cliFlag() { return "-t" + extension; }
 
-    public static Optional<PlantUmlFormat> fromExtension(String ext) {
-        if (ext == null) return Optional.empty();
-        var normalized = ext.toLowerCase().strip();
-        for (var format : values()) {
-            if (format.extension.equals(normalized)) {
-                return Optional.of(format);
-            }
-        }
-        return Optional.empty();
+    // Localised combo-box text; formats without a key show their enum name.
+    public String label() { return labelKey == null ? name() : I18n.get(labelKey); }
+
+    public static PlantUmlFormat fromName(String name, PlantUmlFormat fallback) {
+        return find(f -> f.name().equalsIgnoreCase(String.valueOf(name).strip())).orElse(fallback);
+    }
+
+    public static Optional<PlantUmlFormat> fromExtension(String extension) {
+        return find(f -> f.extension.equalsIgnoreCase(String.valueOf(extension).strip()));
+    }
+
+    private static Optional<PlantUmlFormat> find(java.util.function.Predicate<PlantUmlFormat> match) {
+        return Stream.of(values()).filter(match).findFirst();
     }
 }

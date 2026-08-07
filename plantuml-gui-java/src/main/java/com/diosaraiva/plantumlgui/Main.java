@@ -1,57 +1,41 @@
 package com.diosaraiva.plantumlgui;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.logging.Logger;
 
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 
 import com.diosaraiva.plantumlgui.service.AppSettings;
+import com.diosaraiva.plantumlgui.service.PlantUmlRenderer;
 import com.diosaraiva.plantumlgui.ui.MainFrame;
 import com.diosaraiva.plantumlgui.util.I18n;
+import com.diosaraiva.plantumlgui.util.SwingUtils;
 
-public class Main {
+// Entry point: applies the persisted settings from java_config.ini, then shows the main window.
+public final class Main {
 
-    private static final Path TEMP_DIR =
-            Path.of(System.getProperty("user.dir"), "temp");
+    private static final Logger LOG = Logger.getLogger(Main.class.getName());
+
+    private Main() { }
 
     public static void main(String[] args) {
-        System.setProperty("apple.awt.application.name", "PlantUML GUI");
+        System.setProperty("apple.awt.application.name", I18n.get("app.title"));
 
-        applyMetalTheme();
-
+        applyTheme(AppSettings.get(AppSettings.THEME));
+        SwingUtils.applyFontFamily(AppSettings.get(AppSettings.FONT));
         I18n.setLocale(AppSettings.getLanguage());
 
-        cleanTempDir();
-        Runtime.getRuntime().addShutdownHook(new Thread(Main::cleanTempDir));
+        PlantUmlRenderer.cleanTempDir();
+        Runtime.getRuntime().addShutdownHook(new Thread(PlantUmlRenderer::cleanTempDir));
+
         SwingUtilities.invokeLater(() -> new MainFrame().setVisible(true));
     }
 
-    private static void applyMetalTheme() {
+    // A broken theme name must not stop start-up: fall back to the current look and feel.
+    private static void applyTheme(String className) {
         try {
-            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
-        } catch (ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException ex) {
-            System.err.println("Could not apply Metal look and feel: " + ex.getMessage());
-        }
-    }
-
-    private static void cleanTempDir() {
-        if (!Files.isDirectory(TEMP_DIR)) {
-            return;
-        }
-        try (var files = Files.list(TEMP_DIR)) {
-            files.forEach(Main::deleteQuietly);
-        } catch (IOException ignored) {
-
-        }
-    }
-
-    private static void deleteQuietly(Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException ignored) {
-
+            SwingUtils.applyLookAndFeel(className);
+        } catch (Exception ex) {
+            LOG.warning(() -> "Could not apply look and feel '" + className + "': " + ex.getMessage());
         }
     }
 }

@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 
 import javax.swing.SwingUtilities;
 
+// Runs blocking work off the EDT and delivers both outcomes back on the EDT.
 public final class Background {
 
     private static final ExecutorService EXEC = Executors.newVirtualThreadPerTaskExecutor();
@@ -18,8 +19,8 @@ public final class Background {
             try {
                 T result = task.call();
                 SwingUtilities.invokeLater(() -> onSuccess.accept(result));
-            } catch (Throwable t) {
-                SwingUtilities.invokeLater(() -> onError.accept(t));
+            } catch (Exception ex) {
+                SwingUtilities.invokeLater(() -> onError.accept(ex));
             }
         });
     }
