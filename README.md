@@ -9,11 +9,11 @@ A small desktop app — no installer, no account, no internet connection.
 
 ## 1. Download
 
-**➡️ [Download `plantuml-gui-java.zip`](plantuml-gui-java/release/plantuml-gui-java.zip?raw=1)** — it lives in the [`plantuml-gui-java/release/`](plantuml-gui-java/release/) folder of this repository.
+**➡️ [Download `plantuml-gui-java.zip`](https://github.com/diosaraiva/plantuml-gui/raw/main/plantuml-gui-java/release/plantuml-gui-java.zip)** — one click, the file starts downloading.
 
 That zip is everything you need. You do **not** need the source code.
 
-<sub>Tagged builds are also on the [releases page](https://github.com/diosaraiva/plantuml-gui/releases/latest).</sub>
+<sub>You can also browse it in the [`plantuml-gui-java/release/`](plantuml-gui-java/release/) folder, or grab a tagged build from the [releases page](https://github.com/diosaraiva/plantuml-gui/releases/latest).</sub>
 
 ## 2. Install Java (once)
 
