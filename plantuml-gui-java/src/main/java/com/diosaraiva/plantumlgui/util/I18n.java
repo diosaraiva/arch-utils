@@ -20,9 +20,9 @@ public final class I18n {
     private static final String BUNDLE_DIR = "i18n";
     private static final String BUNDLE_BASE = "messages";
 
-    public static final Locale EN_US = Locale.of("en", "US");
-    public static final Locale PT_BR = Locale.of("pt", "BR");
-    public static final Locale ES_ES = Locale.of("es", "ES");
+    public static final Locale EN_US = Locale.forLanguageTag("en-US");
+    public static final Locale PT_BR = Locale.forLanguageTag("pt-BR");
+    public static final Locale ES_ES = Locale.forLanguageTag("es-ES");
 
     private static Locale current = EN_US;
     private static Properties messages = load(current);

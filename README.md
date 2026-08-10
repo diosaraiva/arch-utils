@@ -1,180 +1,102 @@
 # PlantUML GUI
 
-A dependency-free Java Swing desktop app for PlantUML editing, live preview and export, plus ArchiMate Model Exchange XML generation.
-
-It renders diagrams by invoking a bundled PlantUML JAR as a subprocess, so the only runtime requirement is a Java installation.
-
----
-
-## Repository layout
-
-| Path | Purpose |
-|------|---------|
-| `plantuml-gui-java/` | The Java Swing application (source, resources, bundled PlantUML JAR) |
-| `plantuml-gui-js/` | Placeholder for the future browser port |
-| `java_config.ini` | **Active** configuration, shared by the launchers and the app |
-| `launcher_java_unix.sh` | Menu-driven launcher for Linux / macOS |
-| `launcher_java_windows.bat` | Menu-driven launcher for Windows |
-| `AI-WORKFLOW.md` | Mandatory rules for any AI or human contributing code |
-
-Application packages, all under `com.diosaraiva.plantumlgui`:
-
-| Package | Responsibility |
-|---------|----------------|
-| `util` | Cross-cutting helpers: `ResourceLocator`, `FileNames`, `I18n`, `SwingUtils`, `JarUtils`, `Background`, `TextLineNumber` |
-| `service` | Headless logic: `AppSettings`, `PlantUmlFormat`, `PlantUmlRenderer`, `SampleLoader`, `ArchimatePlantUmlConverter`, `ArchimateExchangeModel` |
-| `ui` | Swing shell: `MainFrame`, `MenuBar`, `AboutDialog` |
-| `ui.plantuml` | The working area: `PlantUmlPanel` plus its input, output and footer panels |
-
-The dependency direction is strictly `ui` → `service` → `util`.
+Write PlantUML, see the diagram instantly, export it as PNG, SVG, PUML or ArchiMate XML.
+A small desktop app — no installer, no account, no internet connection.
 
 ---
 
-## Features
+# 📥 For users
 
-- **Diagram editor** with a monospaced code area, line numbers, and full undo/redo history.
-- **Sample gallery** — ready-to-use PlantUML samples (Activity, Class, Sequence, State, C4, ArchiMate, Gantt, Mindmap, WBS, JSON/YAML and more) that load straight into the editor.
-- **Live preview** that re-renders as you type, with a manual *Preview* button and a character/line counter.
-- **Zoomable image preview** — zoom in/out, fit-to-window, reset to 100%, and `Ctrl`/`⌘` + mouse-wheel zoom.
-- **Integrated console** showing PlantUML compilation output.
-- **Export** to PNG, SVG, PUML or **ArchiMate Model Exchange XML**.
-- **Copy to clipboard** for both the rendered image and the diagram code.
-- **Configurable PlantUML JAR** — point the app at any PlantUML JAR from the Config tab.
-- **Look and feel options** — theme, UI font and window resolution presets.
-- **Internationalized UI** — English (US), Português (BR), Español (ES).
+## 1. Download
 
----
+**➡️ [Download the latest release zip](https://github.com/diosaraiva/plantuml-gui/releases/latest)**
 
-## Getting started
+That zip is everything you need. You do **not** need the source code.
 
-### Requirements
+## 2. Install Java (once)
 
-- **Java 21 or newer** on your `PATH`. The app uses virtual threads, records and pattern matching, and it shells out to `java` to run the PlantUML JAR.
+You need **Java 17 or newer**. Check what you have:
 
-### Run
-
-From the repository root:
-
-```bash
-./launcher_java_unix.sh          # Linux / macOS
-launcher_java_windows.bat        # Windows
+```
+java -version
 ```
 
-Both present the same menu:
+No Java, or an older version? Get it free from [Adoptium](https://adoptium.net/) and install it.
 
-1. **Run without compiling** — source-code launcher, no `.class` files (needs Java 22+ for this multi-class project).
-2. **Compile (if needed) and run** — skips `javac` when the compiled classes are up to date.
-3. **Clean build artifacts + reset config** — after confirmation, removes the directories listed in `launcher.cleanDirs` plus any stray `.class` files, then restores `java_config.ini` to the bundled defaults.
-4. **Restore default configuration** — after confirmation, overwrites `java_config.ini` with the bundled default. Same effect as the **Default** button in the app's Config tab.
-5. **Exit**.
+## 3. Run
 
-Options 3 and 4 reload the launcher settings immediately, so the menu reflects the restored values without restarting the script.
+1. Unzip `plantuml-gui-java.zip` into any folder you like.
+2. Start the app:
+   - **Windows** — double-click `launcher_java_windows.bat`
+   - **macOS / Linux** — double-click `launcher_java_unix.sh`, or run `./launcher_java_unix.sh` in a terminal
 
-You can also run `com.diosaraiva.plantumlgui.Main` directly with `plantuml-gui-java/` as the working directory, so samples, translations and the bundled JAR resolve.
+Everything lives side by side in that one folder:
 
----
+| File | What it is |
+|------|------------|
+| `plantuml-gui-java.jar` | The whole app, PlantUML included |
+| `launcher_java_unix.sh` | Starts the app on macOS / Linux |
+| `launcher_java_windows.bat` | Starts the app on Windows |
+| `java_config.ini` | Your settings — created on first run, safe to delete |
 
-## Configuration (`java_config.ini`)
+> Prefer the terminal? `java -jar plantuml-gui-java.jar` works just as well.
+>
+> On macOS or Linux, if the shell script will not run, do `chmod +x launcher_java_unix.sh` once.
 
-One INI file is shared by the shell script, the batch script and the app.
+## What the app does
 
-- **Active copy** — `java_config.ini` next to the launchers. Read at start-up, written only by **Save**.
-- **Factory default** — `plantuml-gui-java/src/main/resources/java_config.ini`.
-- Three ways to reset the active copy to that default, all producing a byte-identical file:
-  - the **Default** button in the app's **Config** tab,
-  - launcher option **4** (*Restore default configuration*),
-  - launcher option **3** (*Clean build artifacts + reset config*).
-- Missing active file? Both the launchers and the app recreate it from the bundled default.
-- Override the location with `-Dplantumlgui.config=/path/to/java_config.ini`.
+- **Write diagrams** in an editor with line numbers and unlimited undo/redo.
+- **Start from a sample** — Activity, Class, Sequence, State, C4, ArchiMate, Gantt, Mindmap, WBS, JSON/YAML and more.
+- **See it live** — the preview refreshes while you type, or only when you ask.
+- **Zoom** in, out, fit to window, back to 100%, or `Ctrl`/`⌘` + scroll.
+- **Export** to PNG, SVG, PUML or ArchiMate Model Exchange XML.
+- **Copy** the picture or the code to the clipboard.
+- **Make it yours** — theme, font, window size, language (English, Português, Español).
+- **Use your own PlantUML** — point the app at any PlantUML JAR.
 
-### Saving settings
+## The window
 
-Changing a **theme**, **font**, **window size**, **language** or the **Auto Preview** toggle applies
-immediately but is **not written to disk**. Nothing persists until you press **Save** in the
-**Config** tab.
+- **Left — Input.** The **Code** tab is where you type. The **Samples** tab loads a ready-made diagram. Underneath: the **Auto Preview** switch, a character/line counter and the **Preview** button.
+- **Right — Output.** The **Preview** tab shows the picture with a zoom toolbar. The **Console** tab shows what PlantUML reported.
+- **Bottom — Actions.** The **Export** tab picks the file and format. The **Config** tab holds the PlantUML JAR path and the **Save**, **Discard** and **Default** buttons.
 
-While edits are pending, the **Config** tab is marked with an asterisk (`Config *`). From there you can:
+## Everyday tasks
 
-- **Save** — write every pending setting to `java_config.ini`.
-- **Discard** — drop the pending edits and reload the stored values (enabled only when there is something to discard).
-- **Default** — overwrite the file with the bundled defaults and re-apply them.
+**Draw something**
+Type in the **Code** tab. With **Auto Preview** on, the picture updates after a short pause; with it off, click **Preview**.
 
-Quitting with pending edits simply discards them.
+**Load a sample**
+Open **Samples** and click an entry. It replaces what is in the editor.
 
-| Key | Meaning |
-|-----|---------|
-| `launcher.projectDir`, `launcher.srcDir`, `launcher.resDir`, `launcher.outDir` | Paths used by both launchers |
-| `launcher.mainClass`, `launcher.cleanDirs`, `launcher.javacRelease` | Main class, folders removed by *Clean*, optional `javac --release` |
-| `app.language`, `app.theme`, `app.font`, `app.window.width`, `app.window.height` | UI settings, persisted by the **Settings** menu |
-| `app.autoPreview`, `app.previewDelayMs` | Live-preview behaviour |
-| `plantuml.jarPath` | Custom PlantUML JAR (empty = bundled JAR) |
-| `plantuml.bundledJar`, `plantuml.includeDir`, `plantuml.jvmOptions` | Values used on every PlantUML invocation |
-| `plantuml.outputDir` | Directory that relative export targets resolve against |
-| `export.format`, `export.targetFile` | Export defaults; `export.format` is a `PlantUmlFormat` name: `PNG`, `SVG`, `PUML` or `ARCHIMATE` |
+**Zoom**
+`+` and `−` to zoom, **Fit** to fill the window, **1:1** for 100%, or hold `Ctrl`/`⌘` and scroll.
 
-Previews are rendered into a managed scratch directory under the system temp folder, emptied at start-up and on exit. It is not configurable.
+**Export a file**
+1. Open **Export**.
+2. Set the **Target File** (type it or use **Browse…**).
+3. Pick **PNG**, **SVG**, **PUML** or **ArchiMate Exchange (.xml)** — the extension follows automatically.
+4. Click **Export File**. A dialog confirms where it landed.
 
----
+Only need the picture? **Copy to Clipboard** puts it straight into any other app.
 
-## User manual
+**Change the look**
+Use the **Settings** menu for theme, font, window size and language.
 
-### Window layout
+**Save your settings**
+Changes apply immediately but are **not** written to disk until you press **Save** in the **Config** tab. While something is pending the tab reads `Config *`.
 
-1. **Input (left)** — tabs:
-   - **Code** — the diagram editor (default tab).
-   - **Samples** — built-in examples; selecting one loads it into *Code*.
-   - Below: the **Auto Preview** toggle, a character/line counter and the **Preview** button.
-2. **Output (right)** — tabs:
-   - **Preview** — the rendered image with a zoom toolbar.
-   - **Console** — the PlantUML compilation output.
-3. **Footer (bottom)** — tabs:
-   - **Export** — target file, format and export/copy actions.
-   - **Config** — the PlantUML JAR path plus **Save**, **Discard** and **Default**. Shows `Config *` while settings are unsaved.
+- **Save** — keep the changes.
+- **Discard** — go back to the stored values.
+- **Default** — reset everything to factory settings.
 
-### Editing and previewing
+Closing the app with pending changes simply forgets them.
 
-- Type PlantUML in the **Code** tab. With **Auto Preview** on, the **Preview** tab updates after a short pause.
-- Turn **Auto Preview** off to render only when you click **Preview**.
-- Every render appends to the **Console** tab; use **Refresh** to re-run and **Clean** to clear it.
+**Use a different PlantUML**
+Open **Config**, set **PlantUML JAR Path** (or **Browse…**), press **Save**. Clear the field to go back to the bundled one.
 
-### Loading a sample
+## Keyboard shortcuts
 
-Open the **Samples** tab and pick an entry. It replaces the editor content and resets the undo history.
-
-### Zooming the preview
-
-- **+ / −** zoom in and out.
-- **Fit** scales the diagram to the window.
-- **1:1** resets to 100%.
-- Hold `Ctrl` (or `⌘`) and scroll to zoom.
-
-### Exporting
-
-1. Open the **Export** tab.
-2. Set the **Target File** (type a path or use **Browse…**).
-3. Choose the **Format**: PNG, SVG, PUML or ArchiMate Exchange (.xml). Changing the format rewrites the target extension.
-4. Click **Export File**. A confirmation dialog shows the output path.
-5. Use **Copy to Clipboard** to copy the rendered image.
-
-Exporting to **ArchiMate Exchange (.xml)** converts the PlantUML source into an ArchiMate Model Exchange file. Conversion details and warnings appear in the **Console** tab.
-
-### Using a custom PlantUML JAR
-
-1. Open the **Config** tab; the **PlantUML JAR Path** field shows the bundled JAR by default.
-2. Enter a path or use **Browse…**.
-3. Click **Save** to write the path (plus the current export target and format) to `java_config.ini`. Clearing it, or matching the bundled path, reverts to the bundled JAR.
-4. Click **Default** to restore the bundled defaults and re-apply them immediately.
-
-### Menus
-
-- **File** — **Open** a `.puml` file, **Quit**.
-- **Edit** — **Undo**, **Redo**, **Copy**, **Copy Image**, **Paste**, **Select All**.
-- **Settings** — **Theme**, **Font**, **Window** size, **Language**. Each applies at once; use **Config > Save** to keep it.
-- **Help** — **About**.
-
-### Keyboard shortcuts
-
-`⌘`/`Ctrl` is the platform menu-shortcut key.
+`⌘` on macOS, `Ctrl` everywhere else.
 
 | Action | Shortcut |
 |--------|----------|
@@ -185,16 +107,104 @@ Exporting to **ArchiMate Exchange (.xml)** converts the PlantUML source into an 
 | Paste | `⌘`/`Ctrl` + `V` |
 | Select All | `⌘`/`Ctrl` + `A` |
 
+## Help, it does not work
+
+| Symptom | What to do |
+|---------|------------|
+| Nothing happens when I launch it | Java is missing or too old. Run `java -version`; you need **17 or newer**. |
+| "java was not found" | Install Java from [Adoptium](https://adoptium.net/), then open a new terminal or window. |
+| The launcher says the JAR is missing | Keep `plantuml-gui-java.jar` in the same folder as the launcher. |
+| Empty preview or "Preview error" | Read the **Console** tab. If you set a custom PlantUML JAR, clear that field in **Config** to use the bundled one. |
+| My settings disappear | Press **Save** in the **Config** tab; nothing is stored before that. |
+| I want a clean slate | Close the app and delete `java_config.ini`; it comes back with the defaults. |
+
 ---
 
-## Troubleshooting
+# 🛠 For developers
 
-- **Nothing renders / "Preview error"** — make sure `java` is on your `PATH` and the **Config** tab points to a valid PlantUML JAR. Check the **Console** tab for compiler output.
-- **Translations or samples missing** — run with `plantuml-gui-java/` as the working directory so `src/main/resources` resolves. The launchers do this for you.
-- **Menu labels show `!some.key!`** — that key is missing from the active bundle in `src/main/resources/i18n`.
+## Get the source and run it
 
----
+```bash
+git clone https://github.com/diosaraiva/plantuml-gui.git
+cd plantuml-gui
+./dev_java_unix.sh          # Linux / macOS
+dev_java_windows.bat        # Windows
+```
+
+Both open the same menu:
+
+1. **Package (if needed) and run the JAR** — calls `mvn package` when the JAR or the zip is stale, then runs the JAR.
+2. **Run without compiling** — the Java source launcher, no `.class` files (needs Java 22+).
+3. **Compile (if needed) and run** — plain `javac` into `bin/`.
+4. **Clean build artifacts + reset config** — removes `launcher.cleanDirs`, stray `.class` files and the release zip, then restores `java_config.ini`.
+5. **Restore default configuration**.
+6. **Exit**.
+
+## Build the release
+
+```bash
+cd plantuml-gui-java
+mvn package
+```
+
+That produces two artifacts:
+
+| Artifact | Path |
+|----------|------|
+| Self-contained JAR | `plantuml-gui-java/target/plantuml-gui-java.jar` |
+| Distributable zip | `plantuml-gui-java/release/plantuml-gui-java.zip` |
+
+The zip is assembled from `src/assembly/release.xml` and holds the JAR plus the two user launchers, which live in `plantuml-gui-java/release/` and are tracked in git. Everything sits at the root of the zip, so once it is unpacked the launchers find the JAR right next to them.
+
+## Language level
+
+The project targets **Java 17** — the lowest LTS that compiles the code (records, switch rules, pattern matching) and that runs the bundled PlantUML JAR, whose classes require Java 11+. There are no third-party dependencies, and APIs newer than 17 are not allowed. Verify with:
+
+```bash
+javac --release 17 -Xlint:all -Werror ...
+```
+
+## Repository layout
+
+| Path | Purpose |
+|------|---------|
+| `plantuml-gui-java/` | The application: sources, resources and the bundled PlantUML JAR |
+| `plantuml-gui-java/pom.xml` | Dependency-free Maven build |
+| `plantuml-gui-java/release/` | The user launchers (tracked) and the packaged zip (ignored) |
+| `plantuml-gui-js/` | Placeholder for a future browser port |
+| `java_config.ini` | Settings shared by the developer launchers and the app |
+| `dev_java_unix.sh`, `dev_java_windows.bat` | Developer menus: build, run, clean |
+| `AI-WORKFLOW.md` | The rules every change in this repository must follow |
+
+## Application packages
+
+All under `com.diosaraiva.plantumlgui`, with the dependency direction `ui` → `service` → `util`:
+
+| Package | Responsibility |
+|---------|----------------|
+| `util` | Helpers: `ResourceLocator`, `FileNames`, `I18n`, `SwingUtils`, `JarUtils`, `Background`, `Threads`, `TextLineNumber` |
+| `service` | Headless logic: `AppSettings`, `PlantUmlFormat`, `PlantUmlRenderer`, `SampleLoader`, `ArchimatePlantUmlConverter`, `ArchimateExchangeModel` |
+| `ui` | Swing shell: `MainFrame`, `MenuBar`, `AboutDialog` |
+| `ui.plantuml` | The working area: `PlantUmlPanel` and its input, output and footer panels |
+
+## Configuration keys
+
+The factory copy is `plantuml-gui-java/src/main/resources/java_config.ini`; the active copy sits next to the app. Point somewhere else with `-Dplantumlgui.config=/path/to/java_config.ini`.
+
+| Key | Meaning |
+|-----|---------|
+| `launcher.projectDir`, `launcher.srcDir`, `launcher.resDir`, `launcher.outDir` | Paths used by the developer launchers |
+| `launcher.buildDir`, `launcher.releaseDir`, `launcher.jarName`, `launcher.zipName` | Where Maven puts the JAR and the zip; must match `pom.xml` |
+| `launcher.mainClass`, `launcher.cleanDirs`, `launcher.javacRelease` | Main class, folders removed by *Clean*, optional `javac --release` |
+| `app.language`, `app.theme`, `app.font`, `app.window.width`, `app.window.height` | Look and feel |
+| `app.autoPreview`, `app.previewDelayMs` | Live-preview behaviour |
+| `plantuml.jarPath` | Custom PlantUML JAR (empty = bundled) |
+| `plantuml.bundledJar`, `plantuml.includeDir`, `plantuml.jvmOptions` | Values used on every PlantUML run |
+| `plantuml.outputDir` | Where relative export targets land |
+| `export.format`, `export.targetFile` | Export defaults (`PNG`, `SVG`, `PUML`, `ARCHIMATE`) |
+
+Previews render into a temp folder that is emptied on start-up and on exit.
 
 ## Contributing
 
-Read **[AI-WORKFLOW.md](AI-WORKFLOW.md)** first. It defines the comment style, the reuse rules and the definition of done that every change in this repository must follow.
+Read **[AI-WORKFLOW.md](AI-WORKFLOW.md)** first — it defines the language level, comment style, reuse rules and the definition of done for this repository.

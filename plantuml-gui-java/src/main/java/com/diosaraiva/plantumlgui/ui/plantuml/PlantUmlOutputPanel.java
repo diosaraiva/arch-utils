@@ -247,7 +247,7 @@ public final class PlantUmlOutputPanel extends JPanel {
     }
 
     private void setZoom(double scale) {
-        double clamped = Math.clamp(scale, ZOOM_MIN, ZOOM_MAX);
+        double clamped = Math.min(Math.max(scale, ZOOM_MIN), ZOOM_MAX);
         imagePanel.setScale(clamped);
         zoomLabel.setText(Math.round(clamped * 100) + "%");
         imageScroll.repaint();

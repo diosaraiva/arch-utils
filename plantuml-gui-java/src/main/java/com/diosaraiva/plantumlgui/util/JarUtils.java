@@ -53,8 +53,10 @@ public final class JarUtils {
         // Both pipes must be drained concurrently or the child blocks on a full buffer.
         StreamCollector out = new StreamCollector(process.getInputStream());
         StreamCollector err = new StreamCollector(process.getErrorStream());
-        Thread outThread = Thread.ofVirtual().name("jar-stdout").start(out);
-        Thread errThread = Thread.ofVirtual().name("jar-stderr").start(err);
+        Thread outThread = Threads.newDaemon("jar-stdout", out);
+        Thread errThread = Threads.newDaemon("jar-stderr", err);
+        outThread.start();
+        errThread.start();
         int exit = process.waitFor();
         outThread.join();
         errThread.join();

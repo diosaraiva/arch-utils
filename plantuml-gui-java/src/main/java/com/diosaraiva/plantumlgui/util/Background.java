@@ -10,7 +10,9 @@ import javax.swing.SwingUtilities;
 // Runs blocking work off the EDT and delivers both outcomes back on the EDT.
 public final class Background {
 
-    private static final ExecutorService EXEC = Executors.newVirtualThreadPerTaskExecutor();
+    // Daemon threads only, so a pending task never keeps the JVM alive after the window closes.
+    private static final ExecutorService EXEC =
+            Executors.newCachedThreadPool(task -> Threads.newDaemon("background", task));
 
     private Background() { }
 

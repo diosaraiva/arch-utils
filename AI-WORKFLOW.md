@@ -11,7 +11,7 @@ These rules are **binding**. A change that breaks one of them is not done.
 2. **Reuse, then extend, then create.** Creating a new class is the last resort and must be justified by a second caller.
 3. **One concept, one home.** Every rule, constant, format, path or string lives in exactly one place.
 4. **Delete what you replace.** No dead code, no unused imports, no orphan config keys, no "just in case" methods.
-5. **Leave the tree compiling clean.** `javac -Xlint:all -Werror` must pass with zero output.
+5. **Leave the tree compiling clean.** `javac --release 17 -Xlint:all -Werror` must pass with zero output.
 
 ---
 
@@ -49,6 +49,7 @@ Before writing any of these, use the existing owner.
 | Split, strip or swap a file extension | `FileNames` | Inline `lastIndexOf('.')` |
 | Run an external JAR | `JarUtils.runJar` | Raw `ProcessBuilder` |
 | Work off the EDT | `Background.run` | `new Thread`, `SwingWorker` |
+| A worker thread | `Threads.newDaemon` | `new Thread(...)`, virtual threads |
 | Dialog, clipboard, toolbar, menu item, look and feel, font | `SwingUtils` | Direct `JOptionPane` / `Toolkit` / `UIManager` calls |
 | A scratch file for rendering | `PlantUmlRenderer` | A temp directory of your own |
 
@@ -65,7 +66,19 @@ Before writing any of these, use the existing owner.
 
 ---
 
-## 5. Tree-shaking checklist
+## 5. Language level and build
+
+- The compile target is **Java 17**, set once in `plantuml-gui-java/pom.xml` (`maven.compiler.release`). Never raise it to use a convenience API.
+- 17 is the floor because the code uses records, switch rules and pattern matching (16+), and the ceiling because nothing here justifies dropping older JDKs. The bundled PlantUML JAR is compiled for Java 11, so 17 always runs it.
+- Anything newer than 17 is banned: `Locale.of`, `Math.clamp`, `Thread.ofVirtual`, `Executors.newVirtualThreadPerTaskExecutor`, sequenced-collection methods. Verify with `javac --release 17`, not just "it compiles".
+- Worker threads come from `Threads.newDaemon`; they must be daemons so a pending task cannot block shutdown.
+- The build is **one `pom.xml` with no dependencies**. `mvn package` produces two artifacts: the self-contained JAR in `plantuml-gui-java/target/` and the deliverable `plantuml-gui-java/release/plantuml-gui-java.zip`, which contains exactly the JAR and the two user launchers kept in `plantuml-gui-java/release/`.
+- Everything in the zip sits at its root, so an unzipped folder is a working installation with no nesting.
+- Artifact names live in three places that must agree: `pom.xml` (`finalName`, assembly descriptor), `java_config.ini` (`launcher.buildDir`, `launcher.releaseDir`, `launcher.jarName`, `launcher.zipName`) and the user launchers. Rename in all of them or in none.
+
+---
+
+## 6. Tree-shaking checklist
 
 Run this on every touched file:
 
@@ -80,7 +93,7 @@ Run this on every touched file:
 
 ---
 
-## 6. Internationalization rules
+## 7. Internationalization rules
 
 - Bundles live in `plantuml-gui-java/src/main/resources/i18n/messages_<lang>_<COUNTRY>.properties`.
 - Files are **UTF-8** with real accented characters. Never commit escaped or double-encoded text.
@@ -90,9 +103,9 @@ Run this on every touched file:
 
 ---
 
-## 7. Configuration rules
+## 8. Configuration rules
 
-- Adding a setting means: a constant in `AppSettings`, a key in `src/main/resources/java_config.ini`, and a row in the README table.
+- Adding a setting means: a constant in `AppSettings` (or a load in both launchers), a key in `src/main/resources/java_config.ini`, and a row in the README table.
 - The bundled INI is the template — it defines both defaults and key order, and its comments are preserved on write.
 - **Settings never persist implicitly.** `AppSettings.set` updates memory and marks the state dirty; only `AppSettings.save()` touches the file, and only the **Save** button calls it. A menu, toggle or dialog that changes a setting must not save.
 - Writing must round-trip: saving unmodified values reproduces the file byte for byte, and a single edit changes exactly one line.
@@ -103,38 +116,61 @@ Run this on every touched file:
 
 ---
 
-## 8. Launcher rules
+## 9. Launcher rules
 
-- `launcher_java_unix.sh` and `launcher_java_windows.bat` are **feature-mirrors**. A menu option added to one must be added to the other, with the same number, wording and confirmation prompt.
-- Launchers read every path and name from `java_config.ini`; no hard-coded project layout beyond the fallback defaults.
-- Every destructive action asks for confirmation and prints exactly what it will touch beforehand.
-- Verify the shell script with `bash -n`, and check the batch file for undefined labels and missing `exit /b`.
+There are two pairs of scripts, and they must not blur into each other.
+
+**User launchers** — `plantuml-gui-java/release/launcher_java_unix.sh` and `launcher_java_windows.bat`, tracked in git and copied verbatim into the release zip:
+
+- They **only start the app**: no menu, no prompt, no build, no clean.
+- They must work from an unzipped folder that holds nothing but the JAR beside them, and from the repository, where the JAR is one level up in the build dir. Those are the only two lookups allowed.
+- They pass `-Dplantumlgui.config=<script dir>/java_config.ini` so settings stay next to the app instead of one directory up.
+- The only precondition they check is `java` on the `PATH`; the failure message points at the releases page.
+- `release/` is therefore **source, not output**. Never delete the directory; only the packaged zip is disposable.
+
+**Developer launchers** — `dev_java_unix.sh`, `dev_java_windows.bat`, kept in the repository root:
+
+- They are **feature-mirrors**. A menu option added to one must be added to the other, with the same number, wording and confirmation prompt.
+- The menu is **six options**, in this order: package and run the JAR, run from sources, compile and run, clean, restore config, exit. Option 1 calls Maven only when the JAR or the release zip is missing or older than a source or resource.
+- They read every path and name from `java_config.ini`; no hard-coded project layout beyond the fallback defaults.
+- Every destructive action asks for confirmation and prints exactly what it will touch beforehand. Clean removes `launcher.cleanDirs`, stray `.class` files and the release zip — never the `release/` directory itself.
+
+Verify shell scripts with `bash -n`, and check batch files for undefined labels and missing `exit /b`.
 
 ---
 
-## 9. Definition of done
+## 10. Definition of done
 
 A change is complete only when **all** of the following hold:
 
-1. `javac -Xlint:all -Werror` produces no output.
-2. The app starts and renders the default sample.
+1. `javac --release 17 -Xlint:all -Werror` produces no output, and `mvn package` builds `release/plantuml-gui-java.zip`.
+2. The app starts from the JAR unzipped out of that zip and renders the default sample.
 3. Every new user-visible string exists in `en_US`, `pt_BR` and `es_ES`, and no bundle has an unmatched key.
 4. Nothing was duplicated: the reuse map in §3 was checked.
 5. Comments follow §2 exactly — one single-line comment per class, and none that restate code.
 6. Any code, key or file the change made redundant has been deleted.
-7. Both launchers still offer the same options, and `bash -n launcher_java_unix.sh` passes.
+7. Both developer launchers still offer the same options, both user launchers still start the app with no prompt, and `bash -n` passes on both shell scripts.
 8. The README reflects any change to behaviour, configuration, menus or layout.
 
 ---
 
-## 10. Verification commands
+## 11. Verification commands
 
 ```bash
 cd plantuml-gui-java
 
-# Compile the whole tree, warnings are errors.
+# Compile the whole tree at the supported language level, warnings are errors.
 find src/main/java -name "*.java" > /tmp/sources.txt
-javac -Xlint:all -Werror -d /tmp/build @/tmp/sources.txt
+javac --release 17 -Xlint:all -Werror -encoding UTF-8 -d /tmp/build @/tmp/sources.txt
+
+# Package, then check the deliverable holds exactly the JAR and the two user launchers.
+mvn -B package
+unzip -l release/plantuml-gui-java.zip
+
+# Run exactly what ships, from a clean unzipped folder.
+rm -rf /tmp/pgtest && mkdir /tmp/pgtest && cd /tmp/pgtest
+unzip -q "$OLDPWD/release/plantuml-gui-java.zip" && ./launcher_java_unix.sh
+cd "$OLDPWD"
 
 # Run from the project directory so resources resolve.
 java -cp /tmp/build:src/main/resources com.diosaraiva.plantumlgui.Main
@@ -144,8 +180,8 @@ for f in src/main/resources/i18n/*.properties; do
   echo "$f: $(grep -c '^[a-z].*=' "$f") keys"
 done
 
-# Launcher syntax, and confirm the active config matches the template after a reset.
+# Script syntax, and confirm the active config matches the template after a reset.
 cd ..
-bash -n launcher_java_unix.sh
+bash -n dev_java_unix.sh && bash -n plantuml-gui-java/release/launcher_java_unix.sh
 diff java_config.ini plantuml-gui-java/src/main/resources/java_config.ini
 ```
