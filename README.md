@@ -3,6 +3,12 @@
 Write PlantUML, see the diagram instantly, export it as PNG, SVG, PUML or ArchiMate XML.
 A small desktop app — no installer, no account, no internet connection.
 
+<p align="center">
+  <img src="screenshot.png" alt="PlantUML GUI: the code editor on the left, the live diagram preview on the right, and the export and configuration tabs at the bottom" width="900">
+  <br>
+  <sub><b>PlantUML GUI in action</b> — type on the left, watch the diagram render on the right, export from the tabs below.</sub>
+</p>
+
 ---
 
 # 📥 For users
@@ -178,6 +184,7 @@ javac --release 17 -Xlint:all -Werror ...
 | `plantuml-gui-js/` | Placeholder for a future browser port |
 | `java_config.ini` | Settings shared by the developer launchers and the app |
 | `dev_java_unix.sh`, `dev_java_windows.bat` | Developer menus: build, run, clean |
+| `screenshot.png` | The window shot used at the top of this README |
 | `AI-WORKFLOW.md` | The rules every change in this repository must follow |
 
 ## Application packages
