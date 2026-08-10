@@ -126,7 +126,7 @@ There are two pairs of scripts, and they must not blur into each other.
 - They must work from an unzipped folder that holds nothing but the JAR beside them, and from the repository, where the JAR is one level up in the build dir. Those are the only two lookups allowed.
 - They pass `-Dplantumlgui.config=<script dir>/java_config.ini` so settings stay next to the app instead of one directory up.
 - The only precondition they check is `java` on the `PATH`; the failure message points at the releases page.
-- `release/` is therefore **source, not output**. Never delete the directory; only the packaged zip is disposable.
+- `release/` is therefore **source, not output**. Never delete the directory; the packaged zip inside it is the file the README links to, so rebuild and commit it whenever a change reaches users.
 
 **Developer launchers** — `dev_java_unix.sh`, `dev_java_windows.bat`, kept in the repository root:
 

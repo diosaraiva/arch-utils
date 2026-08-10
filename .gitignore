@@ -31,6 +31,9 @@ temp/
 *.jar
 !src/main/resources/plantuml/*.jar
 
+# Settings written by running the app straight from the release folder
+plantuml-gui-java/release/java_config.ini
+
 # macOS
 .DS_Store
 ._*

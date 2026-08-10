@@ -9,9 +9,11 @@ A small desktop app — no installer, no account, no internet connection.
 
 ## 1. Download
 
-**➡️ [Download the latest release zip](https://github.com/diosaraiva/plantuml-gui/releases/latest)**
+**➡️ [Download `plantuml-gui-java.zip`](plantuml-gui-java/release/plantuml-gui-java.zip?raw=1)** — it lives in the [`plantuml-gui-java/release/`](plantuml-gui-java/release/) folder of this repository.
 
 That zip is everything you need. You do **not** need the source code.
+
+<sub>Tagged builds are also on the [releases page](https://github.com/diosaraiva/plantuml-gui/releases/latest).</sub>
 
 ## 2. Install Java (once)
 
@@ -156,6 +158,8 @@ That produces two artifacts:
 
 The zip is assembled from `src/assembly/release.xml` and holds the JAR plus the two user launchers, which live in `plantuml-gui-java/release/` and are tracked in git. Everything sits at the root of the zip, so once it is unpacked the launchers find the JAR right next to them.
 
+The zip in `release/` is the file the README links to, so commit the rebuilt zip whenever a change reaches users.
+
 ## Language level
 
 The project targets **Java 17** — the lowest LTS that compiles the code (records, switch rules, pattern matching) and that runs the bundled PlantUML JAR, whose classes require Java 11+. There are no third-party dependencies, and APIs newer than 17 are not allowed. Verify with:
@@ -170,7 +174,7 @@ javac --release 17 -Xlint:all -Werror ...
 |------|---------|
 | `plantuml-gui-java/` | The application: sources, resources and the bundled PlantUML JAR |
 | `plantuml-gui-java/pom.xml` | Dependency-free Maven build |
-| `plantuml-gui-java/release/` | The user launchers (tracked) and the packaged zip (ignored) |
+| `plantuml-gui-java/release/` | The user launchers and the published `plantuml-gui-java.zip` |
 | `plantuml-gui-js/` | Placeholder for a future browser port |
 | `java_config.ini` | Settings shared by the developer launchers and the app |
 | `dev_java_unix.sh`, `dev_java_windows.bat` | Developer menus: build, run, clean |
